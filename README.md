@@ -7,10 +7,12 @@ Readme structure
 
 1. Student info, Project Name, Short Project Summary
 2. Citation
-3. Repository Structure
-4. Step-by-step Explanation
-5. Explanation of the goal of the app
+3. Explanation of the app goal
+4. App preview or demo
+5. Repository Structure
 6. Dependencies
-7. Student Roles (Explaining what each student contributed to the project)
-8. AI statement (Describing how and where AI was used)
-9. References
+7. Step-by-step Explanation
+8. Methods
+9. Student Roles (Explaining what each student contributed to the project)
+10. AI statement (Describing how and where AI was used)
+11. References
