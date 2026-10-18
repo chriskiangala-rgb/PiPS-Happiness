@@ -9,7 +9,7 @@ world_data <- read.csv(
   colClasses = "character",
   na.strings = "",
   check.names = FALSE
-) #changed link, so it is reproducible 
+) #changed link, so it is reproducible
 
 # Read the happiness dataset.
 happiness_data <- read.csv(
@@ -32,7 +32,7 @@ name_changes <- c(
   "Gambia" = "The Gambia",
   "Ireland" = "Republic of Ireland",
   "State of Palestine" = "Palestinian National Authority"
-) 
+)
 
 
 # Replace these names in the happiness dataset's matching column.
@@ -47,7 +47,8 @@ unmatched_countries <- setdiff(happiness_data$join_country, world_data$join_coun
 
 # Check that each dataset has only one row per country.
 stopifnot(
-  !anyDuplicated(happiness_data$join_country),!anyDuplicated(world_data$join_country)
+  !anyDuplicated(happiness_data$join_country),
+  !anyDuplicated(world_data$join_country)
 )
 
 # Combine the datasets using the matching country names.
@@ -87,12 +88,7 @@ for (column in numeric_columns) {
 }
 
 # Check a few converted columns.
-str(combined_data[, c(
- "happiness",
- "GDP",
- "Population",
- "Unemployment rate"
-)])
+str(combined_data[, c("happiness", "GDP", "Population", "Unemployment rate")])
 
 # Assign continents and split North and South America
 
@@ -131,22 +127,27 @@ country_iso3 <- countrycode::countrycode(
 )
 
 # The 12 sovereign countries in South America.
-south_america <- c(
-  "ARG", "BOL", "BRA", "CHL", "COL", "ECU",
-  "GUY", "PRY", "PER", "SUR", "URY", "VEN"
-)
+south_america <- c("ARG",
+                   "BOL",
+                   "BRA",
+                   "CHL",
+                   "COL",
+                   "ECU",
+                   "GUY",
+                   "PRY",
+                   "PER",
+                   "SUR",
+                   "URY",
+                   "VEN")
 
 # Split the Americas.
 is_americas <- combined_data$continent %in% "Americas"
 
-combined_data$continent[
-  is_americas & country_iso3 %in% south_america
-] <- "South America"
+combined_data$continent[is_americas &
+                          country_iso3 %in% south_america] <- "South America"
 
-combined_data$continent[
-  is_americas & !is.na(country_iso3) &
-    !(country_iso3 %in% south_america)
-] <- "North America"
+combined_data$continent[is_americas & !is.na(country_iso3) &
+                          !(country_iso3 %in% south_america)] <- "North America"
 
 # Tell R that continent contains categories.
 combined_data$continent <- factor(combined_data$continent)
@@ -206,19 +207,18 @@ print(predictor_types, row.names = FALSE)
 
 # Define happiness regression with an optional moderator
 
-analyse_happiness <- function(
-    primary_predictor,
-    moderator = "",
-    data = combined_data,
-    predictors = available_predictors
-) {
+analyse_happiness <- function(primary_predictor,
+                              moderator = "",
+                              data = combined_data,
+                              predictors = available_predictors) {
   # Validate selected predictors and outcome
   
   if (length(primary_predictor) != 1L || is.na(primary_predictor) ||
       !primary_predictor %in% predictors) {
     stop("Choose a valid primary predictor.")
   }
-  if (is.null(moderator)) moderator <- ""
+  if (is.null(moderator))
+    moderator <- ""
   if (length(moderator) != 1L || is.na(moderator) ||
       (moderator != "" && !moderator %in% predictors)) {
     stop("Choose a valid moderator or leave it empty.")
@@ -227,20 +227,20 @@ analyse_happiness <- function(
     stop("The primary predictor and moderator must be different.")
   }
   selected_columns <- c("happiness", primary_predictor)
-  if (moderator != "") selected_columns <- c(selected_columns, moderator)
+  if (moderator != "")
+    selected_columns <- c(selected_columns, moderator)
   if (!all(selected_columns %in% names(data))) {
     stop("A selected column is missing from the supplied data.")
   }
-  if (!is.numeric(data$happiness)) stop("Happiness must be numeric.")
+  if (!is.numeric(data$happiness))
+    stop("Happiness must be numeric.")
   
   # Prepare model data and exclude missing or nonfinite values
   
   # Internal names avoid problems with spaces in original column names.
-  model_data <- data.frame(
-    happiness = data$happiness,
-    primary = data[[primary_predictor]]
-  )
-  if (moderator != "") model_data$moderator <- data[[moderator]]
+  model_data <- data.frame(happiness = data$happiness, primary = data[[primary_predictor]])
+  if (moderator != "")
+    model_data$moderator <- data[[moderator]]
   
   # Use complete, finite values for every selected variable.
   usable <- rep(TRUE, nrow(model_data))
@@ -249,7 +249,8 @@ analyse_happiness <- function(
     if (is.numeric(values)) {
       usable <- usable & is.finite(values)
     } else {
-      usable <- usable & !is.na(values) & trimws(as.character(values)) != ""
+      usable <- usable &
+        !is.na(values) & trimws(as.character(values)) != ""
     }
   }
   model_data <- model_data[usable, , drop = FALSE]
@@ -270,9 +271,7 @@ analyse_happiness <- function(
     }
     if (is.factor(model_data[[column]])) {
       # Explicit treatment coding: first level is the reference category.
-      contrasts(model_data[[column]]) <- contr.treatment(
-        levels(model_data[[column]]), base = 1
-      )
+      contrasts(model_data[[column]]) <- contr.treatment(levels(model_data[[column]]), base = 1)
     }
   }
   if (length(unique(model_data$happiness)) < 2L) {
@@ -290,10 +289,14 @@ analyse_happiness <- function(
   model <- lm(formula, data = model_data)
   
   if (model$rank < ncol(model.matrix(model))) {
-    stop("The model cannot estimate all coefficients independently. Choose different variables or groups.")
+    stop(
+      "The model cannot estimate all coefficients independently. Choose different variables or groups."
+    )
   }
   if (df.residual(model) < 1L) {
-    stop("Too few countries for this model, possibly because there are too many categories or interactions.")
+    stop(
+      "Too few countries for this model, possibly because there are too many categories or interactions."
+    )
   }
   
   # Extract coefficients, p-values, and confidence intervals
@@ -315,13 +318,9 @@ analyse_happiness <- function(
   
   # Separate main-effect coefficients from interaction coefficients.
   is_interaction <- grepl(":", coefficient_table$term, fixed = TRUE)
-  primary_coefficients <- coefficient_table[
-    startsWith(coefficient_table$term, "primary") & !is_interaction,
-    , drop = FALSE
-  ]
-  interaction_coefficients <- coefficient_table[
-    is_interaction, , drop = FALSE
-  ]
+  primary_coefficients <- coefficient_table[startsWith(coefficient_table$term, "primary") &
+                                              !is_interaction, , drop = FALSE]
+  interaction_coefficients <- coefficient_table[is_interaction, , drop = FALSE]
   
   # Test the overall interaction against the additive model
   
@@ -342,14 +341,15 @@ analyse_happiness <- function(
   
   # Identify reference categories and return analysis results
   
-  reference_categories <- lapply(
-    model_data[vapply(model_data, is.factor, logical(1))],
-    function(column) levels(column)[1]
-  )
+  reference_categories <- lapply(model_data[vapply(model_data, is.factor, logical(1))], function(column)
+    levels(column)[1])
   
   list(
     primary = primary_predictor,
-    moderator = if (moderator == "") NULL else moderator,
+    moderator = if (moderator == "")
+      NULL
+    else
+      moderator,
     moderation = moderator != "",
     n_countries = nrow(model_data),
     n_excluded = nrow(data) - nrow(model_data),
@@ -365,3 +365,43 @@ analyse_happiness <- function(
   )
 }
 
+# Uncomment to test
+# #EXAMPLES (names must exactly match your predictor list):
+# unadjusted <- analyse_happiness(primary_predictor = "Social support")
+# print(unadjusted$primary_coefficients)
+# 
+# moderated <- analyse_happiness(primary_predictor = "Social support",
+#                                moderator = "continent",
+#                                data = combined_data)
+# print(moderated$interaction_test)
+# print(moderated$interaction_coefficients)
+# print(moderated$all_coefficients)
+# 
+# #ASIA VERSUS EUROPE ONLY
+# #and the category labels are exactly Asia and Europe):
+# asia_europe <- combined_data[combined_data$continent %in% c("Asia", "Europe"), , drop = FALSE]
+# asia_europe$continent <- relevel(droplevels(factor(asia_europe$continent)), ref = "Europe")
+# moderated <- analyse_happiness(primary_predictor = "Social support",
+#                                moderator = "continent",
+#                                data = asia_europe)
+# print(moderated$interaction_coefficients)
+# print(moderated$interaction_test)
+
+# INTERPRETATION OF CODE:
+# No moderator: the primary coefficient is its unadjusted association.
+# With a moderator: main effects are CONDITIONAL, not overall effects.
+# Numeric moderator: the primary coefficient is the slope at moderator = 0.
+# Factor moderator: it is the slope in the reference category.
+# Numeric primary + factor moderator: interaction coefficients are slope
+# differences compared with the reference category.
+# Two numeric predictors: the interaction describes how one slope changes
+# per one-unit increase in the other predictor.
+# Centering numeric predictors can make zero a more meaningful value.
+# Both categorical: the model is a two-way ANOVA with interaction.
+# The overall interaction test asks whether adding the interaction improves
+# the additive model; it does not provide every pairwise group comparison.
+# To compare only Asia and Europe, filter the input data as above. The app
+# needs additional group-selection controls if users should choose groups.
+# Check assumptions, outliers, and group sample sizes before inference.
+# These country-level associations do not establish individual-level or
+# causal effects. A nonsignificant interaction does not prove equal slopes.
