@@ -8,9 +8,12 @@
 #' (numeric moderator), so the plot shows exactly the model that was tested.
 #'
 #' @param result The list returned by analyse_happiness().
+#' @param countries Optional country names, in the same row order as the data
+#'   that was analysed. When given, each point gets a hover text (shown when
+#'   the plot is made interactive with plotly::ggplotly(tooltip = "text")).
 #'
 #' @return A ggplot object.
-plot_happiness <- function(result) {
+plot_happiness <- function(result, countries = NULL) {
   model_data <- result$model_data
   predictions <- build_prediction_grid(model_data, result$moderation)
   predictions <- cbind(
@@ -18,31 +21,55 @@ plot_happiness <- function(result) {
     predict(result$model, newdata = predictions, interval = "confidence")
   )
 
+  primary_is_numeric <- is.numeric(model_data$primary)
+
   # Colour the countries by group only when the moderator is categorical.
   colour_points <- result$moderation && !is.numeric(model_data$moderator)
   if (colour_points) model_data$group <- model_data$moderator
 
-  primary_is_numeric <- is.numeric(model_data$primary)
-  plot <- ggplot2::ggplot(predictions, ggplot2::aes(primary, fit))
+  # model_data keeps the row numbers of the analysed data, which link each
+  # point back to its country.
+  has_tooltip <- !is.null(countries)
+  if (has_tooltip) {
+    country <- countries[as.integer(rownames(model_data))]
+    primary_value <- if (primary_is_numeric) {
+      format(signif(model_data$primary, 3))
+    } else {
+      as.character(model_data$primary)
+    }
+    model_data$tooltip <- paste0(
+      "<b>", country, "</b><br>Happiness: ", sprintf("%.2f", model_data$happiness),
+      "<br>", result$primary, ": ", primary_value
+    )
+  }
+
+  point_mapping <- list(x = quote(primary), y = quote(happiness))
+  if (colour_points) point_mapping$colour <- quote(group)
+  if (has_tooltip) point_mapping$text <- quote(tooltip)
 
   if (primary_is_numeric) {
     point_layer <- ggplot2::geom_point
-    point_settings <- list(alpha = 0.6)
+    point_settings <- list(alpha = 0.6, size = 2)
   } else {
     point_layer <- ggplot2::geom_jitter
     point_settings <- list(alpha = 0.4, width = 0.15, height = 0)
   }
-  plot <- plot + if (colour_points) {
+  if (!colour_points) point_settings$colour <- "grey50"
+
+  # ggplot2 does not use the "text" aesthetic itself and warns about it,
+  # but plotly reads it for the hover text.
+  points <- withCallingHandlers(
     do.call(point_layer, c(
-      list(data = model_data, mapping = ggplot2::aes(primary, happiness, colour = group)),
+      list(data = model_data, mapping = do.call(ggplot2::aes, point_mapping)),
       point_settings
-    ))
-  } else {
-    do.call(point_layer, c(
-      list(data = model_data, mapping = ggplot2::aes(primary, happiness), colour = "grey50"),
-      point_settings
-    ))
-  }
+    )),
+    warning = function(warning) {
+      if (grepl("unknown aesthetics: text", conditionMessage(warning))) {
+        invokeRestart("muffleWarning")
+      }
+    }
+  )
+  plot <- ggplot2::ggplot(predictions, ggplot2::aes(primary, fit)) + points
 
   if (primary_is_numeric) {
     plot <- plot +
