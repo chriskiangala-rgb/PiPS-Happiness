@@ -15,6 +15,9 @@ Readme structure
 install.R                Installs the required packages (run once)
 R/prepare_data.R         Loads, merges and cleans the data; creates combined_data and available_predictors
 R/analyse_happiness.R    analyse_happiness(): regression of happiness on a predictor, with optional moderator
+R/plot_happiness.R       plot_happiness(): plot of the data with the fitted model
+R/report_happiness.R     Readable coefficient table and plain-language summary of a result
+R/happiness_app.R        happiness_app(): the Shiny app
 examples/examples.R      Example analyses with explanation: source("examples/examples.R")
 tests/error_checks.R     Checks that the data and analysis work: source("tests/error_checks.R")
 data/WHR2023.csv         World Happiness Report 2023

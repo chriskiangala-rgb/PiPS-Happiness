@@ -3,7 +3,9 @@
 # When you use a new package in the code, add its name to this list.
 
 required_packages <- c(
-  "countrycode"
+  "countrycode",
+  "ggplot2",
+  "shiny"
 )
 
 # Install only the packages that are not installed yet.
