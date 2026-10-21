@@ -6,7 +6,7 @@ source("Analysis/Data analysis.R")
 
 print(unmatched_countries)
 
-known_unmatched <- c("Kosovo", "Taiwan Province of China", "Hong Kong S.A.R. of China", "Turkiye")
+known_unmatched <- c("Kosovo", "Taiwan Province of China", "Hong Kong S.A.R. of China")
 
 stopifnot("Unexpected unmatched countries" = all(unmatched_countries %in% known_unmatched))
 
