@@ -168,6 +168,9 @@ check_analysis_result <- function(result,
 # Check the regression results of your examples
 # (run this after unadjusted and moderated have been created)
 
+unadjusted <- analyse_happiness(primary_predictor = "Social support")
+moderated <- analyse_happiness(primary_predictor = "Social support", moderator = "continent")
+
 check_analysis_result(unadjusted)
 check_analysis_result(moderated)
 
