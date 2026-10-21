@@ -74,6 +74,64 @@ describe_result <- function(result) {
   c(sentences, "These are country-level associations: they do not show causal effects or effects on individual people.")
 }
 
+#' Summarise the main effect as one number with its 95% CI
+#'
+#' The effect depends on the analysis:
+#' - numeric predictor: the slope (change in happiness per unit);
+#' - categorical predictor: the largest difference between two groups, with
+#'   a Tukey-adjusted CI and p-value (because the largest of many differences
+#'   is picked out);
+#' - with a moderator: the extra variance explained by the interaction
+#'   (the R-squared change compared with the model without interaction).
+#'
+#' @param result The list returned by analyse_happiness().
+#'
+#' @return A list with a title, the value and a detail line (CI and p-value).
+key_effect <- function(result) {
+  if (result$moderation) {
+    test <- result$interaction_test
+    r_squared_change <- result$r_squared - summary(result$additive_model)$r.squared
+    return(list(
+      title = "Extra variance explained by the interaction",
+      value = sprintf("%.1f%%", 100 * r_squared_change),
+      detail = sprintf("F(%d, %d) = %.2f, p %s",
+                       as.integer(test$df_added), as.integer(df.residual(result$model)),
+                       test$f_value, format_p(test$p_value, with_sign = TRUE))
+    ))
+  }
+
+  if (is.numeric(result$model_data$primary)) {
+    slope <- result$primary_coefficients
+    return(list(
+      title = paste("Change in happiness per unit of", result$primary),
+      value = sprintf("%+.2f", slope$estimate),
+      detail = sprintf("95%% CI [%.2f, %.2f], p %s",
+                       slope$ci_lower, slope$ci_upper,
+                       format_p(slope$p_value, with_sign = TRUE))
+    ))
+  }
+
+  # Categorical predictor: all pairwise group differences, Tukey-adjusted.
+  differences <- stats::TukeyHSD(
+    stats::aov(happiness ~ primary, data = result$model_data)
+  )$primary
+  largest <- which.max(abs(differences[, "diff"]))
+  groups <- strsplit(rownames(differences)[largest], "-", fixed = TRUE)[[1]]
+  difference <- differences[largest, ]
+  # Report the difference as positive: higher group vs lower group.
+  if (difference[["diff"]] < 0) {
+    groups <- rev(groups)
+    difference[c("diff", "lwr", "upr")] <- -difference[c("diff", "upr", "lwr")]
+  }
+  list(
+    title = "Largest difference in happiness between groups",
+    value = sprintf("%+.2f", difference[["diff"]]),
+    detail = sprintf("%s vs %s, 95%% CI [%.2f, %.2f], p %s (Tukey-adjusted)",
+                     groups[1], groups[2], difference[["lwr"]], difference[["upr"]],
+                     format_p(difference[["p adj"]], with_sign = TRUE))
+  )
+}
+
 # Helpers ----
 
 # Replace the internal names in a model term, e.g.
