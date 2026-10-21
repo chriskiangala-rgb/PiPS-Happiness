@@ -1,4 +1,4 @@
-source("https://raw.githubusercontent.com/chriskiangala-rgb/PiPS_mood/refs/heads/Data-and-stats/data/Data_analysis_change.R")
+source("Analysis/Data analysis.R")
 
 #Error checks for the happiness data analysis
 
