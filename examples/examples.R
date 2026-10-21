@@ -1,28 +1,41 @@
-source("https://raw.githubusercontent.com/chriskiangala-rgb/PiPS_mood/refs/heads/Data-and-stats/data/Data_analysis_change.R")
+# Examples of the happiness analysis ----
+# Run from the project root: source("examples/examples.R")
+source("R/prepare_data.R")
+source("R/analyse_happiness.R")
 
+# Available predictors and the number of countries per continent
+print(predictor_types, row.names = FALSE)
+print(table(combined_data$continent, useNA = "ifany"))
 
-#EXAMPLES (names must exactly match your predictor list):
+# Examples (names must exactly match the predictor list) ----
 unadjusted <- analyse_happiness(primary_predictor = "Social support")
 print(unadjusted$primary_coefficients)
 
-moderated <- analyse_happiness(primary_predictor = "Social support",
-                               moderator = "continent",
-                               data = combined_data)
+moderated <- analyse_happiness(
+  primary_predictor = "Social support",
+  moderator = "continent",
+  data = combined_data
+)
 print(moderated$interaction_test)
 print(moderated$interaction_coefficients)
 print(moderated$all_coefficients)
 
-#ASIA VERSUS EUROPE ONLY
-#and the category labels are exactly Asia and Europe):
-asia_europe <- combined_data[combined_data$continent %in% c("Asia", "Europe"), , drop = FALSE]
-asia_europe$continent <- relevel(droplevels(factor(asia_europe$continent)), ref = "Europe")
-moderated <- analyse_happiness(primary_predictor = "Social support",
-                               moderator = "continent",
-                               data = asia_europe)
+# Asia versus Europe only (the category labels must be exactly Asia and Europe):
+asia_europe <- combined_data[
+  combined_data$continent %in% c("Asia", "Europe"), , drop = FALSE
+]
+asia_europe$continent <- relevel(
+  droplevels(factor(asia_europe$continent)), ref = "Europe"
+)
+moderated <- analyse_happiness(
+  primary_predictor = "Social support",
+  moderator = "continent",
+  data = asia_europe
+)
 print(moderated$interaction_coefficients)
 print(moderated$interaction_test)
 
-# INTERPRETATION OF CODE:
+# Interpretation of the results ----
 # No moderator: the primary coefficient is its unadjusted association.
 # With a moderator: main effects are CONDITIONAL, not overall effects.
 # Numeric moderator: the primary coefficient is the slope at moderator = 0.
