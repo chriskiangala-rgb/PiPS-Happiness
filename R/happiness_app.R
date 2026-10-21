@@ -6,6 +6,11 @@
 #' numbers, an interactive plot (hover a point to see the country), a
 #' plain-language summary and the coefficient table of analyse_happiness().
 #'
+#' Parts marked PLANNED are not built yet. They describe what the app should
+#' do once the data, analysis and report functions support it; the commented
+#' code shows where each part goes. "Coming soon" boxes stand in for them, so
+#' the app keeps running in the meantime.
+#'
 #' @param data The combined dataset (combined_data from prepare_data.R).
 #' @param predictors The variable names the user can choose from.
 #'
@@ -20,6 +25,13 @@ happiness_app <- function(data, predictors) {
     sidebar = bslib::sidebar(
       width = 320,
       bg = app_colours$sidebar,
+
+      # PLANNED: group the choices into "WHR factors", "Country facts" and
+      # "Categories", and show readable names with units, e.g.
+      # "Tax revenue (% of GDP)". Both come from a variable list in
+      # prepare_data.R (name, label, unit, group, transformation), so the
+      # menus, the plot axis and the "About the data" tab share one source:
+      #   choices = predictor_menu(variable_info, predictors)
       shinyWidgets::pickerInput(
         "primary", "Predictor",
         choices = predictors, selected = default_predictor,
@@ -34,11 +46,53 @@ happiness_app <- function(data, predictors) {
         "A moderator tests whether the association between the predictor",
         "and happiness differs between groups or levels of another variable."
       ),
+
+      # PLANNED: control variables, at most 3, never the predictor or the
+      # moderator. Needs the control_variables argument of
+      # analyse_happiness() from PR 8.
+      # shinyWidgets::pickerInput(
+      #   "controls", "Control variables (optional, max. 3)",
+      #   choices = setdiff(predictors, default_predictor),
+      #   multiple = TRUE,
+      #   options = list(`live-search` = TRUE, `max-options` = 3, size = 10)
+      # ),
+      # shiny::helpText(
+      #   "Control variables are held constant: the effect shown is the",
+      #   "association that remains between countries that are equal on them."
+      # ),
+
+      # PLANNED: compare two continents. Only shown when continent is the
+      # predictor or the moderator; empty means all continents. Needs the
+      # reference_continent and comparison_continent arguments from PR 8.
+      # shiny::conditionalPanel(
+      #   "input.primary == 'continent' || input.moderator == 'continent'",
+      #   shinyWidgets::pickerInput(
+      #     "reference_continent", "Reference continent",
+      #     choices = c("All continents" = "", levels(data$continent))
+      #   ),
+      #   shinyWidgets::pickerInput(
+      #     "comparison_continent", "Compared with",
+      #     choices = c("All continents" = "", levels(data$continent))
+      #   )
+      # ),
+
+      shiny::helpText(
+        "Explore, don't conclude: with this many possible combinations some",
+        "results will be significant by chance. All results compare countries,",
+        "not individual people, and show associations, not causes."
+      ),
       shiny::helpText("Data: World Happiness Report 2023 and Global Country Information 2023.")
     ),
+
+    # Key numbers ----
     bslib::layout_columns(
       fill = FALSE,
       col_widths = c(6, 3, 3),
+      # PLANNED: for a numeric predictor, show the change in happiness points
+      # per 1 SD of the predictor with a robust (HC3) 95% CI, so effects of
+      # different predictors can be compared. For a categorical predictor,
+      # the largest group difference from the model with the controls.
+      # Changes go in key_effect() (report_happiness.R).
       bslib::value_box(
         title = shiny::textOutput("effect_title", inline = TRUE),
         value = shiny::textOutput("effect_value"),
@@ -46,6 +100,8 @@ happiness_app <- function(data, predictors) {
         showcase = bsicons::bs_icon("graph-up-arrow"),
         theme = tile_theme()
       ),
+      # PLANNED: with control variables, show the variance the predictor adds
+      # on top of the controls (R-squared change) instead of the total.
       bslib::value_box(
         title = "Variance in happiness explained",
         value = shiny::textOutput("r_squared"),
@@ -54,20 +110,111 @@ happiness_app <- function(data, predictors) {
       bslib::value_box(
         title = "Countries analysed",
         value = shiny::textOutput("n_countries"),
+        shiny::textOutput("n_excluded"),
         theme = tile_theme()
       )
     ),
-    bslib::card(
+
+    # Main views, one tab each ----
+    bslib::navset_card_tab(
       full_screen = TRUE,
-      bslib::card_header("Happiness and the chosen predictor"),
-      plotly::plotlyOutput("plot", height = "460px")
+      bslib::nav_panel(
+        "Plot",
+        # PLANNED: option to add a curved (spline) line next to the straight
+        # model line, to show whether the association bends.
+        # shiny::checkboxInput("show_curve", "Also show a curved line", FALSE),
+        plotly::plotlyOutput("plot", height = "460px")
+      ),
+      bslib::nav_panel(
+        "Map",
+        # PLANNED: a world map coloured by the chosen layer.
+        # - Happiness and the predictor: a sequential colour scale.
+        # - Residuals: a diverging scale (blue - white - red, 0 in the middle)
+        #   showing which countries are happier or unhappier than the model
+        #   predicts. Below it, Moran's I: are neighbouring countries similar?
+        # - Countries without data in grey, with "No data" in the legend.
+        # - Hover: country, value and happiness, as in the plot.
+        # - A note that large countries dominate the map visually, while each
+        #   country counts once in the analysis.
+        # Needs ISO3 country codes stored in combined_data (prepare_data.R).
+        # shiny::radioButtons(
+        #   "map_layer", NULL, inline = TRUE,
+        #   choices = c(
+        #     "Happiness" = "happiness",
+        #     "Chosen predictor" = "predictor",
+        #     "Happier or unhappier than predicted" = "residual"
+        #   )
+        # ),
+        # plotly::plotlyOutput("map", height = "460px"),
+        # shiny::uiOutput("map_note"),
+        coming_soon(
+          "A world map coloured by happiness, by the chosen predictor, or by",
+          "how much happier or unhappier each country is than the model predicts."
+        )
+      ),
+      bslib::nav_panel(
+        "Model checks",
+        # PLANNED: checks of the regression assumptions, each with one line
+        # explaining what to look for.
+        # - Residuals against fitted values: a curve means the association is
+        #   not straight; a funnel means unequal spread (heteroskedasticity,
+        #   handled by the robust standard errors).
+        # - QQ plot of the residuals: points far from the line mean
+        #   non-normal residuals (matters little with ~130 countries).
+        # - Influential countries (Cook's distance), named, so you can see
+        #   whether a few countries drive the result.
+        # - VIF per variable when control variables are chosen, with a
+        #   warning above 5: the estimates are then uncertain because the
+        #   variables overlap.
+        # bslib::layout_columns(
+        #   col_widths = c(6, 6),
+        #   plotly::plotlyOutput("residual_plot", height = "320px"),
+        #   plotly::plotlyOutput("qq_plot", height = "320px")
+        # ),
+        # reactable::reactableOutput("influential_countries"),
+        # reactable::reactableOutput("vif_table"),
+        coming_soon(
+          "Checks of the model assumptions: residual plots, a QQ plot, the",
+          "most influential countries and, with control variables, the VIF."
+        )
+      ),
+      bslib::nav_panel(
+        "About the data",
+        shiny::tags$ul(
+          shiny::tags$li(
+            "Happiness and the WHR factors: World Happiness Report 2023",
+            "(Helliwell et al., 2023), averages over 2020-2022 from the",
+            "Gallup World Poll."
+          ),
+          shiny::tags$li(
+            "Country facts: Global Country Information Dataset 2023 (Kaggle).",
+            "Compiled from several sources and years, which are not named per variable."
+          ),
+          shiny::tags$li(
+            "One row per country: every result describes countries, not individual people."
+          )
+        ),
+        # PLANNED: a table of every variable with its meaning, unit, source
+        # and transformation (log, per person), read from the variable list
+        # in prepare_data.R.
+        # reactable::reactableOutput("variable_table"),
+        coming_soon("A table explaining every variable, its unit and how it was transformed.")
+      )
     ),
+
+    # Explanation and coefficients ----
     bslib::layout_columns(
       col_widths = c(5, 7),
+      # PLANNED: describe the effect per 1 SD and name the control variables;
+      # with controls, also compare the effect without and with them on the
+      # same countries. Changes go in describe_result().
       bslib::card(
         bslib::card_header("What does this mean?"),
         shiny::uiOutput("summary")
       ),
+      # PLANNED: standardized and unstandardized estimates side by side,
+      # robust CIs, and the real names of the control variables.
+      # Changes go in format_coefficients().
       bslib::card(
         bslib::card_header("Model coefficients"),
         reactable::reactableOutput("coefficients")
@@ -86,8 +233,22 @@ happiness_app <- function(data, predictors) {
       )
     })
 
+    # PLANNED: keep the predictor and moderator out of the control menu.
+    # shiny::observeEvent(list(input$primary, input$moderator), {
+    #   taken <- c(input$primary, input$moderator)
+    #   shinyWidgets::updatePickerInput(
+    #     session, "controls",
+    #     choices = setdiff(predictors, taken),
+    #     selected = setdiff(shiny::isolate(input$controls), taken)
+    #   )
+    # })
+
     # Some combinations cannot be estimated (e.g. too few countries);
     # keep analyse_happiness()'s error so it can be shown instead of a crash.
+    # PLANNED: also pass the PR 8 arguments:
+    #   control_variables = input$controls,
+    #   reference_continent = input$reference_continent,
+    #   comparison_continent = input$comparison_continent
     result <- shiny::reactive({
       shiny::req(input$primary)
       moderator <- if (is.null(input$moderator)) "" else input$moderator
@@ -105,6 +266,9 @@ happiness_app <- function(data, predictors) {
 
     # Key numbers ----
     output$n_countries <- shiny::renderText(usable_result()$n_countries)
+    output$n_excluded <- shiny::renderText(
+      sprintf("%d excluded because of missing data", usable_result()$n_excluded)
+    )
     output$r_squared <- shiny::renderText(
       sprintf("%.0f%%", 100 * usable_result()$r_squared)
     )
@@ -115,6 +279,10 @@ happiness_app <- function(data, predictors) {
 
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
+    # PLANNED (in plot_happiness()): hold control variables at their mean or
+    # reference group in the prediction lines, draw the bands from the
+    # robust standard errors, keep the x-axis in the original units, and
+    # add the curved line when input$show_curve is ticked.
     output$plot <- plotly::renderPlotly({
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
       plot <- plot_happiness(result(), countries = data[["Country name"]])
@@ -137,6 +305,34 @@ happiness_app <- function(data, predictors) {
         columns = list(Term = reactable::colDef(minWidth = 200))
       )
     )
+
+    # Map ----
+    # PLANNED: see the Map tab above for what it shows.
+    # output$map <- plotly::renderPlotly(
+    #   map_happiness(usable_result(), data, layer = input$map_layer)
+    # )
+    # output$map_note <- shiny::renderUI(map_note(usable_result(), data))
+
+    # Model checks ----
+    # PLANNED: see the Model checks tab above for what they show.
+    # output$residual_plot <- plotly::renderPlotly(
+    #   interactive_plot(plot_residuals(usable_result(), data[["Country name"]]))
+    # )
+    # output$qq_plot <- plotly::renderPlotly(
+    #   interactive_plot(plot_qq(usable_result()))
+    # )
+    # output$influential_countries <- reactable::renderReactable(
+    #   reactable::reactable(influential_countries(usable_result(), data[["Country name"]]))
+    # )
+    # output$vif_table <- reactable::renderReactable({
+    #   shiny::req(length(usable_result()$controls) > 0)
+    #   reactable::reactable(variance_inflation(usable_result()))
+    # })
+
+    # About the data ----
+    # PLANNED: output$variable_table <- reactable::renderReactable(
+    #   reactable::reactable(variable_info)
+    # )
   }
 
   # plotly plots do not pick up the theme colours by themselves.
@@ -149,6 +345,15 @@ happiness_app <- function(data, predictors) {
 # The moderator menu: "None" plus every predictor except the chosen one.
 moderator_choices <- function(predictors, primary) {
   c("None" = "", setdiff(predictors, primary))
+}
+
+# Stands in for a part of the app that is planned but not built yet.
+coming_soon <- function(...) {
+  shiny::div(
+    class = "text-muted p-4",
+    shiny::tags$strong("Coming soon. "),
+    paste(...)
+  )
 }
 
 # The font of the app and the plot: the computer's own system font.
@@ -217,3 +422,28 @@ remove_empty_fonts <- function(settings) {
   if (!is.null(settings$family) && settings$family %in% c("", "''")) settings$family <- NULL
   lapply(settings, remove_empty_fonts)
 }
+
+# Planned helpers ----
+# Used by the PLANNED parts above; none of these exist yet.
+#
+# In prepare_data.R:
+#   variable_info        Data frame: name, label, unit, group, source,
+#                        transformation. One row per available predictor.
+#   predictor_menu(variable_info, predictors)
+#                        Grouped, labelled choices for the pickers.
+#
+# In analyse_happiness.R (results stored in the list it returns):
+#   z-scored numeric predictors, robust (HC3) standard errors, the robust
+#   interaction test, residuals per country, Cook's distance, VIF, and
+#   Moran's I of the residuals (neighbours from latitude and longitude).
+#
+# In R/map_happiness.R:
+#   map_happiness(result, data, layer)   plotly choropleth by ISO3 code.
+#   map_note(result, data)               Caveat text and Moran's I result.
+#
+# In R/check_model.R:
+#   plot_residuals(result, countries)    Residuals against fitted values.
+#   plot_qq(result)                      QQ plot of the residuals.
+#   influential_countries(result, countries)
+#                                        Countries with the largest Cook's distance.
+#   variance_inflation(result)           VIF per variable, flagged above 5.
