@@ -198,12 +198,15 @@ stopifnot(
 print(predictor_types, row.names = FALSE)
 
 # Define happiness regression with an optional moderator ----
-
+# added two optional continent selections to the function
 analyse_happiness <- function(
     primary_predictor,
     moderator = "",
     data = combined_data,
-    predictors = available_predictors
+    predictors = available_predictors,
+    reference_continent = "",
+    comparison_continent = "",
+    control_variables = character(0)
 ) {
   # Validate selected predictors and outcome ----
   
@@ -219,12 +222,70 @@ analyse_happiness <- function(
   if (moderator == primary_predictor) {
     stop("The primary predictor and moderator must be different.")
   }
-  selected_columns <- c("happiness", primary_predictor)
-  if (moderator != "") selected_columns <- c(selected_columns, moderator)
+  
+  # Validate optional control variables, variable should not also be the predictor or moderator 
+  if (is.null(control_variables)) control_variables = character(0)
+  if (!is.character(control_variables) || anyNA(control_variables)) {
+    stop("Choose valid control variables or leave the selection empty.")
+  }
+  control_variables = unique(control_variables[control_variables != ""])
+  
+  if (!all(control_variables %in% predictors)) {
+    stop("A selected control variable is not available.")
+  }
+  if (any(control_variables %in% c(primary_predictor, moderator))) {
+    stop("Control variables must differ from the primary predictor and moderator.")
+  }
+  
+  selected_columns = c("happiness", primary_predictor)
+  if (moderator != "") selected_columns = c(selected_columns, moderator)
+  selected_columns = c(selected_columns, control_variables)
   if (!all(selected_columns %in% names(data))) {
     stop("A selected column is missing from the supplied data.")
   }
   if (!is.numeric(data$happiness)) stop("Happiness must be numeric.")
+  
+  
+  # Optionally compare two selected continents ----
+  # Both selections must be single text values.
+  for (selection in list(reference_continent, comparison_continent)) {
+    if (!is.character(selection) ||
+        length(selection) != 1L ||
+        is.na(selection)) {
+      stop("Each continent selection must be a single text value.")
+    }
+  }
+  
+  compare_two_continents <-
+    reference_continent != "" || comparison_continent != ""
+  
+  #checks for 2 different continents and that "continent is primary predictor"
+  if (compare_two_continents) {
+    if (primary_predictor != "continent") {
+      stop("Select continent as the primary predictor to compare two continents.")
+    }
+    
+    if (reference_continent == "" || comparison_continent == "") {
+      stop("Select both a reference continent and a comparison continent.")
+    }
+    
+    if (reference_continent == comparison_continent) {
+      stop("Choose two different continents.")
+    }
+    
+    continent_options <- unique(as.character(data$continent))
+    selected_continents <- c(reference_continent, comparison_continent)
+    
+    if (!all(selected_continents %in% continent_options)) {
+      stop("A selected continent is not present in the supplied data.")
+    }
+    
+    # Keep only countries from the two selected continents.
+    data <- data[
+      data$continent %in% selected_continents,
+      , drop = FALSE
+    ]
+  }
   
   # Prepare model data and exclude missing or nonfinite values ----
   
@@ -234,6 +295,15 @@ analyse_happiness <- function(
     primary = data[[primary_predictor]]
   )
   if (moderator != "") model_data$moderator <- data[[moderator]]
+  control_names = if (length(control_variables) > 0) {
+    paste0("control", seq_along(control_variables))
+  } else {
+    character(0)
+  }
+  
+  for (i in seq_along(control_variables)) {
+    model_data[[control_names[i]]] = data[[control_variables[i]]]
+  }
   
   # Use complete, finite values for every selected variable.
   usable <- rep(TRUE, nrow(model_data))
@@ -262,6 +332,21 @@ analyse_happiness <- function(
       stop(paste("No variation in", column, "among the available countries."))
     }
     if (is.factor(model_data[[column]])) {
+      # Use the chosen continent as the reference group.
+      if (column == "primary" && compare_two_continents) {
+        if (!all(
+          c(reference_continent, comparison_continent) %in%
+          levels(model_data[[column]])
+        )) {
+          stop("Both selected continents need usable data for this model.")
+        }
+        
+        model_data[[column]] <- relevel(
+          model_data[[column]],
+          ref = reference_continent
+        )
+      }
+      
       # Explicit treatment coding: first level is the reference category.
       contrasts(model_data[[column]]) <- contr.treatment(
         levels(model_data[[column]]), base = 1
@@ -275,11 +360,17 @@ analyse_happiness <- function(
   # Fit the regression model and check estimability ----
   
   # * includes both main effects AND their interaction.
-  formula <- if (moderator == "") {
-    happiness ~ primary
+  main_terms <- if (moderator == "") {
+    "primary"
   } else {
-    happiness ~ primary * moderator
+    "primary * moderator"
   }
+  
+  #include every selected control as an additive adjustment, whether or not you select a moderator.
+  formula <- reformulate(
+    termlabels = c(main_terms, control_names),
+    response = "happiness"
+  )
   model <- lm(formula, data = model_data)
   
   if (model$rank < ncol(model.matrix(model))) {
@@ -323,10 +414,15 @@ analyse_happiness <- function(
   # which is important when a categorical variable has more than two levels.
   interaction_test <- NULL
   additive_model <- NULL
+
   if (moderator != "") {
-    additive_model <- lm(happiness ~ primary + moderator, data = model_data)
-    comparison <- anova(additive_model, model)
-    interaction_test <- data.frame(
+    additive_formula = reformulate(
+      termlabels = c("primary", "moderator", control_names),
+      response = "happiness"
+    )
+    additive_model = lm(additive_formula, data = model_data)
+    comparison = anova(additive_model, model)
+    interaction_test = data.frame(
       df_added = comparison$Df[2],
       f_value = comparison$F[2],
       p_value = comparison$`Pr(>F)`[2]
@@ -344,6 +440,8 @@ analyse_happiness <- function(
     primary = primary_predictor,
     moderator = if (moderator == "") NULL else moderator,
     moderation = moderator != "",
+    control_variables = control_variables,
+    control_mapping = setNames(control_variables, control_names),
     n_countries = nrow(model_data),
     n_excluded = nrow(data) - nrow(model_data),
     primary_coefficients = primary_coefficients,
@@ -357,3 +455,4 @@ analyse_happiness <- function(
     model_data = model_data
   )
 }
+
