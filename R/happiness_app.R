@@ -19,6 +19,7 @@ happiness_app <- function(data, predictors) {
     fillable = FALSE,
     sidebar = bslib::sidebar(
       width = 320,
+      bg = app_colours$sidebar,
       shinyWidgets::pickerInput(
         "primary", "Predictor",
         choices = predictors, selected = default_predictor,
@@ -37,20 +38,23 @@ happiness_app <- function(data, predictors) {
     ),
     bslib::layout_columns(
       fill = FALSE,
+      col_widths = c(6, 3, 3),
       bslib::value_box(
-        title = "Countries analysed",
-        value = shiny::textOutput("n_countries"),
-        showcase = bsicons::bs_icon("globe-europe-africa")
+        title = shiny::textOutput("effect_title", inline = TRUE),
+        value = shiny::textOutput("effect_value"),
+        shiny::textOutput("effect_detail"),
+        showcase = bsicons::bs_icon("graph-up-arrow"),
+        theme = tile_theme()
       ),
       bslib::value_box(
         title = "Variance in happiness explained",
         value = shiny::textOutput("r_squared"),
-        showcase = bsicons::bs_icon("pie-chart")
+        theme = tile_theme()
       ),
       bslib::value_box(
-        title = shiny::textOutput("p_label", inline = TRUE),
-        value = shiny::textOutput("p_value"),
-        showcase = bsicons::bs_icon("clipboard-data")
+        title = "Countries analysed",
+        value = shiny::textOutput("n_countries"),
+        theme = tile_theme()
       )
     ),
     bslib::card(
@@ -104,16 +108,24 @@ happiness_app <- function(data, predictors) {
     output$r_squared <- shiny::renderText(
       sprintf("%.0f%%", 100 * usable_result()$r_squared)
     )
-    output$p_label <- shiny::renderText({
-      if (usable_result()$moderation) "p-value of the interaction" else "p-value of the model"
-    })
-    output$p_value <- shiny::renderText(format_p(key_p_value(usable_result())))
+    effect <- shiny::reactive(key_effect(usable_result()))
+    output$effect_title <- shiny::renderText(effect()$title)
+    output$effect_value <- shiny::renderText(effect()$value)
+    output$effect_detail <- shiny::renderText(effect()$detail)
 
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
     output$plot <- plotly::renderPlotly({
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
-      interactive_plot(plot_happiness(result(), countries = data[["Country name"]]))
+      plot <- plot_happiness(result(), countries = data[["Country name"]])
+      # A single model line gets the app's purple; groups keep the
+      # colour-blind friendly palette so they stay easy to tell apart.
+      if (!result()$moderation) {
+        plot <- plot + ggplot2::scale_colour_manual(
+          values = app_colours$primary, aesthetics = c("colour", "fill")
+        )
+      }
+      interactive_plot(plot)
     })
     output$summary <- shiny::renderUI(
       shiny::tags$ul(lapply(describe_result(usable_result()), shiny::tags$li))
@@ -127,7 +139,8 @@ happiness_app <- function(data, predictors) {
     )
   }
 
-  thematic::thematic_shiny()
+  # plotly plots do not pick up the theme colours by themselves.
+  thematic::thematic_shiny(accent = app_colours$primary)
   shiny::shinyApp(ui, server)
 }
 
@@ -141,17 +154,36 @@ moderator_choices <- function(predictors, primary) {
 # The font of the app and the plot: the computer's own system font.
 app_fonts <- c("system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif")
 
-# The colours and fonts of the app (Bootstrap 5 via bslib).
+# The colours of the app.
+app_colours <- list(
+  title_bar = "#7E5BB5",  # lilac purple
+  primary = "#6B46A8",    # buttons, links and the model line in the plot
+  sidebar = "#F4EFFA",    # very light lavender
+  tile = "#EDE5F7",       # light lavender
+  tile_text = "#3D2766"   # dark purple
+)
+
+# The theme of the app (Bootstrap 5 via bslib).
 app_theme <- function() {
-  bslib::bs_theme(version = 5, bootswatch = "flatly", base_font = do.call(bslib::font_collection, as.list(app_fonts)))
+  theme <- bslib::bs_theme(
+    version = 5,
+    primary = app_colours$primary,
+    "navbar-bg" = app_colours$title_bar,
+    base_font = do.call(bslib::font_collection, as.list(app_fonts))
+  )
+  # The 'None' moderator is a real choice, so do not grey it out.
+  bslib::bs_add_rules(theme, "
+    .bslib-sidebar-layout .bootstrap-select > .dropdown-toggle.bs-placeholder,
+    .bslib-sidebar-layout .bootstrap-select > .dropdown-toggle.bs-placeholder:hover,
+    .bslib-sidebar-layout .bootstrap-select > .dropdown-toggle.bs-placeholder:focus {
+      color: var(--bs-body-color);
+    }
+  ")
 }
 
-# Without a moderator: the p-value of the whole model.
-# With a moderator: the p-value of the joint interaction test.
-key_p_value <- function(result) {
-  if (result$moderation) return(result$interaction_test$p_value)
-  model_test <- summary(result$model)$fstatistic
-  unname(pf(model_test[1], model_test[2], model_test[3], lower.tail = FALSE))
+# The colours of the number tiles at the top.
+tile_theme <- function() {
+  bslib::value_box_theme(bg = app_colours$tile, fg = app_colours$tile_text)
 }
 
 # Turn the ggplot into a plotly plot that shows the country on hover.
