@@ -14,7 +14,7 @@ happiness_data <- read.csv("data/WHR2023.csv", check.names = FALSE)
 
 # Install countrycode only if it is not already installed.
 if (!requireNamespace("countrycode", quietly = TRUE)) {
-  install.packages("countrycode")
+ 
 }
 
 # Standardize country names for matching ----
