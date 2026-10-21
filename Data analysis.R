@@ -1,5 +1,6 @@
 # Import datasets and install countrycode ----
  library(countrycode)
+
 # Read the world dataset.
 # Keep columns as text for now; numbers will be cleaned later
 world_data <- read.csv(
@@ -11,11 +12,6 @@ world_data <- read.csv(
 
 # Read the happiness dataset.
 happiness_data <- read.csv("data/WHR2023.csv", check.names = FALSE)
-
-# Install countrycode only if it is not already installed.
-if (!requireNamespace("countrycode", quietly = TRUE)) {
- 
-}
 
 # Standardize country names for matching ----
 
@@ -361,50 +357,3 @@ analyse_happiness <- function(
     model_data = model_data
   )
 }
-
-# EXAMPLES (uncomment to run; names must exactly match your predictor list):----
-# unadjusted <- analyse_happiness(primary_predictor = "Social support")
-# print(unadjusted$primary_coefficients)
-
-# moderated <- analyse_happiness(
-#   primary_predictor = "Social support",
-#   moderator = "continent",
-#   data = combined_data
-# )
-# print(moderated$interaction_test)
-# print(moderated$interaction_coefficients)
-# print(moderated$all_coefficients)
-
-# ASIA VERSUS EUROPE ONLY (uncomment if your column is named continent
-# and the category labels are exactly Asia and Europe):
-# asia_europe <- combined_data[
-#   combined_data$continent %in% c("Asia", "Europe"), , drop = FALSE
-# ]
-# asia_europe$continent <- relevel(
-#   droplevels(factor(asia_europe$continent)), ref = "Europe"
-# )
-# moderated <- analyse_happiness(
-#   primary_predictor = "Social support",
-#   moderator = "continent",
-#   data = asia_europe
-# )
-# print(moderated$interaction_coefficients)
-# print(moderated$interaction_test)
-# INTERPRETATION OF CODE: ----
-# No moderator: the primary coefficient is its unadjusted association.
-# With a moderator: main effects are CONDITIONAL, not overall effects.
-# Numeric moderator: the primary coefficient is the slope at moderator = 0.
-# Factor moderator: it is the slope in the reference category.
-# Numeric primary + factor moderator: interaction coefficients are slope
-# differences compared with the reference category.
-# Two numeric predictors: the interaction describes how one slope changes
-# per one-unit increase in the other predictor.
-# Centering numeric predictors can make zero a more meaningful value.
-# Both categorical: the model is a two-way ANOVA with interaction.
-# The overall interaction test asks whether adding the interaction improves
-# the additive model; it does not provide every pairwise group comparison.
-# To compare only Asia and Europe, filter the input data as above. The app
-# needs additional group-selection controls if users should choose groups.
-# Check assumptions, outliers, and group sample sizes before inference.
-# These country-level associations do not establish individual-level or
-# causal effects. A nonsignificant interaction does not prove equal slopes.
