@@ -1,0 +1,12 @@
+---
+title: "What goes together with happiness?"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+for (file in list.files("R", full.names = TRUE)) source(file)
+```
+
+```{r app, eval = FALSE}
+shiny::runApp(happiness_app(combined_data, available_predictors))
+```

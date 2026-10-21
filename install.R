@@ -9,6 +9,7 @@ required_packages <- c(
   "ggplot2",
   "plotly",
   "reactable",
+  "rmarkdown",
   "shiny",
   "shinyWidgets",
   "thematic"
