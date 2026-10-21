@@ -1,0 +1,14 @@
+# Install the packages this project needs ----
+# Run this file once: source("install.R")
+# When you use a new package in the code, add its name to this list.
+
+required_packages <- c(
+  "countrycode"
+)
+
+# Install only the packages that are not installed yet.
+for (package in required_packages) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package)
+  }
+}
