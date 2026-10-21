@@ -12,6 +12,7 @@ Readme structure
 ## 5. Repository Structure
 
 ```
+main.Rmd                 Main deliverable: runs the app
 install.R                Installs the required packages (run once)
 R/prepare_data.R         Loads, merges and cleans the data; creates combined_data and available_predictors
 R/analyse_happiness.R    analyse_happiness(): regression of happiness on a predictor, with optional moderator
