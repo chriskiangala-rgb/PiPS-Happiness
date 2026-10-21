@@ -1,5 +1,5 @@
 # Import datasets and install countrycode ----
-
+ library(countrycode)
 # Read the world dataset.
 # Keep columns as text for now; numbers will be cleaned later
 world_data <- read.csv(
