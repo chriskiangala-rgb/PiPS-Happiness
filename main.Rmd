@@ -19,3 +19,28 @@ shiny::runApp(happiness_app(
   variable_info = variable_info
 ))
 ```
+
+## Assumption checks
+
+The regression assumptions are checked for every predictor in the simple
+model happiness ~ predictor (README, section 8). The counts:
+
+```{r assumption-checks}
+assumption_checks <- check_assumptions()
+knitr::kable(assumption_checks$summary)
+```
+
+Nearby countries are more alike than the model predicts (Moran's I of the
+residuals), less so with continent as control:
+
+```{r spatial}
+knitr::kable(assumption_checks$spatial, digits = 3)
+```
+
+The effect with continent as control, with standard errors clustered by
+continent (a robustness check; with only 6 clusters, interpret it with
+caution):
+
+```{r clustered}
+knitr::kable(assumption_checks$clustered, digits = 3)
+```
