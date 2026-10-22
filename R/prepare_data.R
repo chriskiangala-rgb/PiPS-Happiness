@@ -288,8 +288,8 @@ stopifnot(
   all(combined_data[["Urban population (%)"]] <= 100, na.rm = TRUE),
   !any(vapply(combined_data[numeric_predictors],
               function(x) any(is.infinite(x) | is.nan(x)), logical(1)))
- )
-  
+)
+
 # How many countries each predictor covers
 predictor_coverage <- data.frame(
   variable    = available_predictors,
