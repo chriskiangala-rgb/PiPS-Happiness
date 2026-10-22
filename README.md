@@ -14,7 +14,7 @@ Readme structure
 ```
 install.R                Installs the required packages (run once)
 R/prepare_data.R         Loads, merges and cleans the data; creates combined_data and available_predictors
-R/analyse_happiness.R    analyse_happiness(): regression of happiness on a predictor, with optional moderator
+R/analyse_happiness.R    analyse_happiness(): regression of happiness on a predictor, with optional moderator, control variables and continent selection
 examples/examples.R      Example analyses with explanation: source("examples/examples.R")
 tests/error_checks.R     Checks that the data and analysis work: source("tests/error_checks.R")
 data/WHR2023.csv         World Happiness Report 2023
