@@ -60,7 +60,8 @@ combined_data <- merge(
 
 # Rename "Ladder score" to "happiness".
 names(combined_data)[names(combined_data) == "Ladder score"] <- "happiness"
-names(combined_data)[names(combined_data) == "Standard error of ladder score"] <- "SE of happiness score"
+names(combined_data)[names(combined_data) == "Standard error of ladder score"] <-
+  "SE of happiness score"
 
 # Clean and convert numeric world-data columns ----
 
@@ -97,7 +98,8 @@ log2_positive <- function(x) {
 # 1. Totals -> comparable measures
 combined_data[["GDP per person"]] <- combined_data$GDP / combined_data$Population
 # Co2-Emissions is in kilotonnes; per person in tonnes.
-combined_data[["CO2 per person"]] <- 1000 * combined_data[["Co2-Emissions"]] / combined_data$Population
+combined_data[["CO2 per person"]] <-
+  1000 * combined_data[["Co2-Emissions"]] / combined_data$Population
 combined_data[["Armed forces per 1000 people"]] <-
   1000 * combined_data[["Armed Forces size"]] / combined_data$Population
 combined_data[["Urban population (%)"]] <-
@@ -256,7 +258,7 @@ predictor_scale <- data.frame(
   ),
   sd = vapply(
     numeric_predictors,
-    function(p) sd(combined_data[[p]], na.rm = TRUE),
+    function(p) stats::sd(combined_data[[p]], na.rm = TRUE),
     numeric(1)
   ),
   row.names = NULL
@@ -364,7 +366,9 @@ variable_info <- data.frame(
   transformation = variable_details[, 5],
   row.names = NULL
 )
-variable_info$n <- predictor_coverage$n_available[match(variable_info$variable, predictor_coverage$variable)]
+variable_info$n <- predictor_coverage$n_available[
+  match(variable_info$variable, predictor_coverage$variable)
+]
 variable_info$sd <- predictor_scale$sd[match(variable_info$variable, predictor_scale$variable)]
 
 stopifnot(

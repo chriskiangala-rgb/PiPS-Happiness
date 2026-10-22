@@ -361,7 +361,8 @@ happiness_app <- function(data, predictors,
       problem <- selection_problem(analysed_data(), c(input$primary, moderator, controls),
                                    compares_continents)
       if (!is.null(problem)) return(simpleError(problem))
-      reference <- if (compares_continents && isTRUE(input$reference_continent %in% input$continents)) {
+      chosen_reference <- isTRUE(input$reference_continent %in% input$continents)
+      reference <- if (compares_continents && chosen_reference) {
         input$reference_continent
       } else {
         ""
@@ -422,7 +423,9 @@ happiness_app <- function(data, predictors,
     output$effect_detail <- shiny::renderText(effect()$detail)
     # The effect without the moderator, the curve against the line, and the
     # example of a logged predictor or a curve.
-    output$effect_baseline <- shiny::renderText(paste(c(effect()$baseline, effect()$example), collapse = ". "))
+    output$effect_baseline <- shiny::renderText(
+      paste(c(effect()$baseline, effect()$example), collapse = ". ")
+    )
 
     # Notes on the chosen variables ----
     output$variable_notes <- shiny::renderUI({
@@ -432,7 +435,8 @@ happiness_app <- function(data, predictors,
       shiny::div(
         class = "small alert alert-warning py-2 px-3",
         lapply(chosen, function(variable) {
-          shiny::p(class = "mb-1", shiny::tags$b(paste0(variable, ":")), predictor_notes[[variable]])
+          shiny::p(class = "mb-1", shiny::tags$b(paste0(variable, ":")),
+                   predictor_notes[[variable]])
         })
       )
     })
@@ -541,13 +545,19 @@ happiness_app <- function(data, predictors,
       reactable::reactable(
         table[order(tolower(table$Variable)), ],
         compact = TRUE, striped = TRUE, pagination = FALSE, searchable = TRUE,
-        columns = list(Variable = reactable::colDef(minWidth = 180), Unit = reactable::colDef(minWidth = 180))
+        columns = list(
+          Variable = reactable::colDef(minWidth = 180),
+          Unit = reactable::colDef(minWidth = 180)
+        )
       )
     })
     output$vif <- shiny::renderUI({
       vif <- variance_inflation(usable_result())
       if (is.null(vif)) {
-        return(shiny::p(class = "text-muted", "Needs at least two variables: choose a moderator or a control variable."))
+        return(shiny::p(
+          class = "text-muted",
+          "Needs at least two variables: choose a moderator or a control variable."
+        ))
       }
       reactable::reactable(vif, compact = TRUE, pagination = FALSE)
     })
@@ -684,8 +694,9 @@ app_theme <- function() {
     base_font = do.call(bslib::font_collection, as.list(app_fonts()))
   )
   # Space and a soft purple shadow between the blocks of the page; the
-  # profile card sits inside its output placeholder, so it gets its own rule. The number tiles get less
-  # padding and a smaller number, so they take little height. The 'None'
+  # profile card sits inside its output placeholder, so it gets its own
+  # rule. The number tiles get less padding and a smaller number, so they
+  # take little height. The 'None'
   # moderator is a real choice, so it is not greyed out. The unit under
   # each menu entry gets its own line, so it is not cut off.
   bslib::bs_add_rules(theme, "
@@ -733,7 +744,9 @@ interactive_plot <- function(plot) {
   # ggplotly gives every text element ggplot's empty font name (''), which
   # browsers show as a serif font. Remove it so the app's font is used.
   interactive$x$layout <- remove_empty_fonts(interactive$x$layout)
-  interactive <- plotly::layout(interactive, font = list(family = paste(app_fonts(), collapse = ", ")))
+  interactive <- plotly::layout(
+    interactive, font = list(family = paste(app_fonts(), collapse = ", "))
+  )
   plotly::config(interactive, displaylogo = FALSE)
 }
 
