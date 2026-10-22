@@ -71,6 +71,19 @@ for (layer in c("happiness", "predictor", "residual")) {
   )
 }
 
+# With some continents left out, the map note should name them as grey
+
+three_continents <- combined_data[combined_data$continent %in% c("Africa", "Asia", "Europe"), ]
+subset_result <- analyse_happiness("Social support", data = three_continents)
+subset_note <- map_note(subset_result, three_continents, "happiness")
+
+stopifnot(
+  "The map note should name the continents that are not selected" =
+    any(grepl("not selected (North America, Oceania, South America)", subset_note, fixed = TRUE)),
+  "With all continents, the map note should not mention unselected continents" =
+    !any(grepl("not selected", map_note(result, combined_data, "happiness")))
+)
+
 # Check Moran's I on made-up data: values that rise from south to north are
 # clustered (I clearly positive); the same values shuffled are not
 
