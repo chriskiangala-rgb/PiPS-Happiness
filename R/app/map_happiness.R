@@ -24,11 +24,15 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
   # Taken from the data, not the model, so the map shows the original units.
   predictor <- data[[result$primary]][rows]
   residual <- stats::residuals(result$model)
+  # A logged predictor is coloured on the log scale (otherwise a few rich or
+  # large countries take all the colour), but labelled in original units.
+  scale <- if (is.numeric(predictor)) log_scale(result$primary)
 
   hover <- paste0(
     "<b>", countries, "</b>",
     "<br>Happiness: ", sprintf("%.2f", happiness),
-    "<br>", result$primary, ": ", format_map_value(predictor),
+    "<br>", if (is.null(scale)) display_name(result, result$primary) else scale$name, ": ",
+    format_map_value(original_units(predictor, result$primary)),
     "<br>Compared with the model: ", sprintf("%+.2f", residual)
   )
 
@@ -39,9 +43,15 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
     values <- switch(layer, happiness = happiness, predictor = predictor, residual = residual)
     title <- switch(layer,
       happiness = "Happiness",
-      predictor = result$primary,
+      predictor = if (is.null(scale)) display_name(result, result$primary) else scale$name,
       residual = "Compared with the model"
     )
+    colorbar <- list(title = list(text = paste(strwrap(title, 14), collapse = "<br>")), len = 0.7)
+    if (layer == "predictor" && !is.null(scale)) {
+      breaks <- log_axis_breaks(range(predictor), scale$base)
+      colorbar$tickvals <- log(breaks, base = scale$base)
+      colorbar$ticktext <- format_number(breaks)
+    }
     map <- plotly::add_trace(
       map,
       type = "choropleth",
@@ -58,7 +68,7 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
       },
       zmid = if (layer == "residual") 0,
       marker = list(line = list(color = "white", width = 0.5)),
-      colorbar = list(title = list(text = paste(strwrap(title, 14), collapse = "<br>")), len = 0.7)
+      colorbar = colorbar
     )
   }
 

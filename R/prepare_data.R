@@ -98,7 +98,8 @@ log2_positive <- function(x) {
 }
 # 1. Totals -> comparable measures
 combined_data[["GDP per person"]] <- combined_data$GDP / combined_data$Population
-combined_data[["CO2 per person"]] <- combined_data[["Co2-Emissions"]] / combined_data$Population
+# Co2-Emissions is in kilotonnes; per person in tonnes.
+combined_data[["CO2 per person"]] <- 1000 * combined_data[["Co2-Emissions"]] / combined_data$Population
 combined_data[["Armed forces per 1000 people"]] <-
   1000 * combined_data[["Armed Forces size"]] / combined_data$Population
 combined_data[["Urban population (%)"]] <-
@@ -307,4 +308,67 @@ predictor_notes <- c(
 predictor_notes["Minimum wage"] <- paste(
   "Missing for about 1 in 6 countries, mostly richer ones, and some may have",
   "no national minimum wage. Results describe the countries with data."
+)
+
+# Variable list ----
+# One row per predictor: a readable label, the unit, the source and the
+# transformation, plus the number of countries with data and the SD (across
+# all countries with data, after any log). Used for the app's menus, its
+# "About the data" table and the effect per SD.
+
+world_source <- "Global Country Information 2023"
+whr_source <- "World Happiness Report 2023"
+
+variable_details <- rbind(
+  c("Logged GDP per capita", "GDP per capita (WHR)", "PPP, constant 2017 international $", whr_source, "natural log (in the WHR)"),
+  c("Social support", "Social support", "share who have someone to count on (0-1)", whr_source, "none"),
+  c("Healthy life expectancy", "Healthy life expectancy", "years", whr_source, "none"),
+  c("Freedom to make life choices", "Freedom to make life choices", "share satisfied with their freedom (0-1)", whr_source, "none"),
+  c("Generosity", "Generosity", "donating, relative to GDP (0 = as expected)", whr_source, "none"),
+  c("Perceptions of corruption", "Perceptions of corruption", "share who see corruption (0-1)", whr_source, "none"),
+  c("Agricultural Land( %)", "Agricultural land (%)", "% of land area", world_source, "none"),
+  c("Birth Rate", "Birth rate", "births per 1,000 people per year", world_source, "none"),
+  c("CPI Change (%)", "CPI change (%)", "% price change per year", world_source, "none"),
+  c("Fertility Rate", "Fertility rate", "births per woman", world_source, "none"),
+  c("Forested Area (%)", "Forested area (%)", "% of land area", world_source, "none"),
+  c("Gasoline Price", "Gasoline price", "US$ per litre", world_source, "none"),
+  c("Gross primary education enrollment (%)", "Primary education enrollment (%)", "% of the age group (can exceed 100)", world_source, "none"),
+  c("Gross tertiary education enrollment (%)", "Tertiary education enrollment (%)", "% of the age group (can exceed 100)", world_source, "none"),
+  c("Life expectancy", "Life expectancy", "years", world_source, "none"),
+  c("Minimum wage", "Minimum wage", "US$ per hour", world_source, "none"),
+  c("Out of pocket health expenditure", "Out-of-pocket health spending", "% of health spending", world_source, "none"),
+  c("Physicians per thousand", "Physicians per 1,000 people", "physicians per 1,000 people", world_source, "none"),
+  c("Population: Labor force participation (%)", "Labour force participation (%)", "% of people aged 15+", world_source, "none"),
+  c("Tax revenue (%)", "Tax revenue (%)", "% of GDP", world_source, "none"),
+  c("Total tax rate", "Total tax rate", "% of commercial profits", world_source, "none"),
+  c("Unemployment rate", "Unemployment rate", "% of the labour force", world_source, "none"),
+  c("Longitude", "Longitude", "degrees (negative = west)", world_source, "none"),
+  c("log2(GDP per person)", "GDP per person", "US$ per person", world_source, "GDP / population, log2"),
+  c("log2(CO2 per person)", "CO2 per person", "tonnes per person", world_source, "CO2 emissions / population, log2"),
+  c("Urban population (%)", "Urban population (%)", "% of the population", world_source, "urban population / population"),
+  c("Armed forces per 1000 people", "Armed forces per 1,000 people", "personnel per 1,000 people", world_source, "armed forces / population"),
+  c("Distance from equator", "Distance from equator", "degrees latitude", world_source, "absolute latitude"),
+  c("log2(Maternal mortality ratio)", "Maternal mortality", "deaths per 100,000 live births", world_source, "log2"),
+  c("log2(Infant mortality)", "Infant mortality", "deaths per 1,000 live births", world_source, "log2"),
+  c("log2(Population)", "Population", "people", world_source, "log2"),
+  c("log2(Land Area(Km2))", "Land area", "km2", world_source, "log2"),
+  c("log2(Density (P/Km2))", "Population density", "people per km2", world_source, "log2"),
+  c("log2(CPI)", "Consumer price index", "index, 2010 = 100", world_source, "log2"),
+  c("continent", "Continent", "category (North and South America split)", "countrycode package", "assigned from the country name")
+)
+variable_info <- data.frame(
+  variable = variable_details[, 1],
+  label = variable_details[, 2],
+  unit = variable_details[, 3],
+  source = variable_details[, 4],
+  transformation = variable_details[, 5],
+  row.names = NULL
+)
+variable_info$n <- predictor_coverage$n_available[match(variable_info$variable, predictor_coverage$variable)]
+variable_info$sd <- predictor_scale$sd[match(variable_info$variable, predictor_scale$variable)]
+
+stopifnot(
+  "Every predictor needs a row in variable_info" =
+    setequal(variable_info$variable, available_predictors),
+  "Labels must be unique" = !anyDuplicated(variable_info$label)
 )

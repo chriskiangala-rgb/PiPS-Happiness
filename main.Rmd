@@ -14,6 +14,8 @@ an app cannot run inside a static HTML page.
 ```{r app, eval = FALSE}
 shiny::runApp(happiness_app(
   combined_data, available_predictors,
-  predictor_groups = group_predictors(available_predictors)
+  predictor_groups = group_predictors(available_predictors),
+  predictor_notes = predictor_notes,
+  variable_info = variable_info
 ))
 ```
