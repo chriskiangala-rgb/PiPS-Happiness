@@ -1,4 +1,6 @@
-source("Analysis/Data analysis.R")
+# Run from the project root: source("tests/error_checks.R")
+source("R/prepare_data.R")
+source("R/analyse_happiness.R")
 
 #Error checks for the happiness data analysis
 
