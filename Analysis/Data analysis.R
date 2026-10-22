@@ -198,10 +198,14 @@ stopifnot(
 print(predictor_types, row.names = FALSE)
 
 # Define happiness regression with an optional moderator ----
-# added two optional continent selections to the function when using continent as predictor
-  #reference_continent is the continent you want to use as reference
-  #comparison_continent is the continent you want to use as comparison to the reference continent
-#control_variables is the variable(s) you want to control for in you analysis
+# primary_predictor: the variable whose link with happiness you want to see.
+# moderator: optional variable that may change that link ("" for none).
+# control_variables: optional variables to adjust for (any number).
+# selected_continents: optional, two or more continents to keep; countries on
+#   other continents are left out. Needs continent as predictor or moderator.
+# reference_continent: optional continent the other continents are compared
+#   with. Defaults to the first of selected_continents, otherwise to the first
+#   continent alphabetically. Needs continent as predictor or moderator.
 
 analyse_happiness <- function(
     primary_predictor,
