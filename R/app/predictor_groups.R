@@ -25,22 +25,22 @@ predictor_themes <- function() {
       "Logged GDP per capita", "Perceptions of corruption", "Social support"
     ),
     "Economy and work" = c(
-      "CPI", "CPI Change (%)", "Gasoline Price", "GDP", "Minimum wage",
+      "log2(CPI)", "CPI Change (%)", "Gasoline Price", "log2(GDP per person)", "Minimum wage",
       "Population: Labor force participation (%)", "Tax revenue (%)",
       "Total tax rate", "Unemployment rate"
     ),
     "Health" = c(
-      "Infant mortality", "Life expectancy", "Maternal mortality ratio",
+      "log2(Infant mortality)", "Life expectancy", "log2(Maternal mortality ratio)",
       "Out of pocket health expenditure", "Physicians per thousand"
     ),
     "Population and education" = c(
-      "Armed Forces size", "Birth Rate", "Density\n(P/Km2)", "Fertility Rate",
+      "Armed forces per 1000 people", "Birth Rate", "log2(Density (P/Km2))", "Fertility Rate",
       "Gross primary education enrollment (%)",
-      "Gross tertiary education enrollment (%)", "Population", "Urban_population"
+      "Gross tertiary education enrollment (%)", "log2(Population)", "Urban population (%)"
     ),
     "Land and environment" = c(
-      "Agricultural Land( %)", "Co2-Emissions", "Forested Area (%)",
-      "Land Area(Km2)", "Latitude", "Longitude"
+      "Agricultural Land( %)", "log2(CO2 per person)", "Forested Area (%)",
+      "log2(Land Area(Km2))", "Distance from equator", "Longitude"
     ),
     "Categories" = c("continent", "Official language", "Currency-Code")
   )
