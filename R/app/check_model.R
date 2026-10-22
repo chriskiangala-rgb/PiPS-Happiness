@@ -46,7 +46,7 @@ plot_residuals <- function(result, countries) {
 #' @return A ggplot object.
 plot_qq <- function(result, countries) {
   residual <- stats::rstandard(result$model)
-  order <- order(residual)
+residual_order <- order(residual)
   checks <- data.frame(
     theoretical = stats::qnorm(stats::ppoints(length(residual))),
     observed = residual[order],
