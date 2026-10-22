@@ -75,12 +75,26 @@ residual_order <- order(residual)
 #'
 #' @return A data frame with the n most influential countries.
 influential_countries <- function(result, countries, n = 5) {
+  # Country names must match the observations used in the model.
+  if (length(countries) != nrow(result$model_data)) {
+    stop("Provide one country name per model observation, in model-row order.")
+  }
+
+  # Validate the requested number of countries.
+  if (!is.numeric(n) || length(n) != 1L ||
+      !is.finite(n) || n < 1 || n != floor(n)) {
+    stop("n must be a positive whole number.")
+  }
+
   distance <- stats::cooks.distance(result$model)
   threshold <- 4 / length(distance)
-  top <- order(distance, decreasing = TRUE)[seq_len(min(n, length(distance)))]
-  rows <- as.integer(rownames(result$model_data))[top]
+
+  top <- order(distance, decreasing = TRUE)[
+    seq_len(min(n, length(distance)))
+  ]
+
   data.frame(
-    Country = countries[rows],
+    Country = countries[top],
     Happiness = sprintf("%.2f", result$model_data$happiness[top]),
     Residual = sprintf("%+.2f", stats::residuals(result$model)[top]),
     `Cook's distance` = sprintf("%.3f", distance[top]),
