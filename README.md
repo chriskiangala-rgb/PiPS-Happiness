@@ -30,16 +30,79 @@ The app opens on a world map of happiness. The tiles at the top show the effect 
 With a moderator, the Plot tab shows a separate line per group. Here the effect of social support differs per continent, and the Netherlands is highlighted with its own profile above the plot.
 
 ![The app's Plot tab: happiness against social support with a line per continent and the Netherlands highlighted](images/app_plot.png)
+
 ## 5. How to run it
->[!IMPORTANT]
->Run everything with this repository root as working directory.
-### 1. Run source("install.R") in RStudio if it is your first time using the app
-### 2. Open [main.Rmd](main.Rmd), then run the setup chunk followed by the app chunk. 
+
+### Clone the repository
+
+Clone the repository to your computer by running these commands in a terminal:
+
+```bash
+git clone https://github.com/chriskiangala-rgb/PiPS-Happiness.git
+cd PiPS-Happiness
+```
+
+Alternatively, select **Code → Download ZIP** on GitHub and extract the downloaded folder.
+
+### Set the working directory
+
+Open the local [main.Rmd](main.Rmd) file in RStudio. Select **Session → Set Working Directory → To Source File Location**.
+
+**Important:** Run all commands below with the repository root as your working directory. This is the folder containing `main.Rmd`, `install.R`, and the `R`, `tests`, and `examples` folders.
+
+### Install the required packages
+
+On first use, run this command in the RStudio console:
+
+```r
+source("install.R")
+```
+
+This installs any required packages that are missing. Wait for installation to finish before continuing.
+
+### Knit the main document
+
+Open [main.Rmd](main.Rmd) and click **Knit** in RStudio to generate the HTML report. Alternatively, run this command in the RStudio console:
+
+```r
+rmarkdown::render("main.Rmd")
+```
+
+Knitting runs every chunk from top to bottom: the analysis, the plot and the assumption checks. The app chunk has `eval = FALSE`, so its code appears in the report, but the interactive app does not launch during knitting.
+
+### Launch the interactive app
+
+In `main.Rmd`, run the **setup** chunk followed by the **app** chunk, using the green arrow at the top right of each chunk.
+
+Run the setup chunk in your current RStudio session even if you have already knitted the document.
+
+### Run the tests
+
+Run these commands in the RStudio console from the repository root:
+
+```r
+source("tests/error_checks.R")
+source("tests/app_checks.R")
+```
+
+See [tests/error_checks.R](tests/error_checks.R) and [tests/app_checks.R](tests/app_checks.R) for the test code.
+
+### Run the examples
+
+Run this command in the RStudio console from the repository root:
+
+```r
+source("examples/examples.R")
+```
+
+See [examples/examples.R](examples/examples.R) for the example analyses and explanations.
+
 ## 6. Repository Structure
 
 ```
-main.Rmd                        Main deliverable: run its app chunk to start the app
+main.Rmd                        Main deliverable: the analysis with its plot, the assumption checks, and the app chunk
 install.R                       Installs the required packages (run once)
+LICENSE                         MIT license for this project
 references.bib                  References for main.Rmd (data, methods, R and packages)
 apa.csl                         APA 7th edition citation style for main.Rmd (Citation Style Language project)
 R/load_project.R                load_project(): loads the data and the high-level functions; the helpers stay out of the global environment
