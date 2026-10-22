@@ -254,89 +254,42 @@ analyse_happiness <- function(
   if (!is.numeric(data$happiness)) stop("Happiness must be numeric.")
   
   
-  # Optionally compare two selected continents as moderator ----
-  # Both selections must be single text values.
-  for (selection in list(reference_continent, comparison_continent)) {
-    if (!is.character(selection) ||
-        length(selection) != 1L ||
-        is.na(selection)) {
-      stop("Each continent selection must be a single text value.")
-    }
+  # Optionally select continents and a reference continent ----
+  if (!is.character(reference_continent) ||
+      length(reference_continent) != 1L ||
+      is.na(reference_continent)) {
+    stop("The reference continent must be a single text value.")
   }
-  
-  # Optionally select two or more continents.
+  uses_continents <- !is.null(selected_continents) || reference_continent != ""
+  if (uses_continents && !"continent" %in% c(primary_predictor, moderator)) {
+    stop("Select continent as the predictor or moderator to compare continents.")
+  }
+  continent_options <- unique(as.character(data$continent))
+
+  # Keep only countries from two or more selected continents.
   if (!is.null(selected_continents)) {
-    if (!"continent" %in% c(primary_predictor, moderator)) {
-      stop("Select continent as the predictor or moderator to compare continents.")
-    }
-    
-    if (comparison_continent != "") {
-      stop("Use selected_continents OR comparison_continent, not both.")
-    }
-    
     if (!is.character(selected_continents) || anyNA(selected_continents)) {
       stop("Provide selected_continents as a character vector of continent names.")
     }
-    
     selected_continents <- unique(selected_continents)
-    
     if (length(selected_continents) < 2L) {
       stop("Select at least two different continents.")
     }
-    
-    continent_options <- unique(as.character(data$continent))
-    
     if (!all(selected_continents %in% continent_options)) {
       stop("A selected continent is not present in the supplied data.")
     }
-    
     if (reference_continent != "" &&
         !reference_continent %in% selected_continents) {
       stop("The reference continent must be among the selected continents.")
     }
-    
-    # Keep only countries from the selected continents.
-    data <- data[
-      data$continent %in% selected_continents,
-      , drop = FALSE
-    ]
-    
+    data <- data[data$continent %in% selected_continents, , drop = FALSE]
+
     # Default reference: the first selected continent.
-    if (reference_continent == "") {
-      reference_continent <- selected_continents[1L]
-    }
+    if (reference_continent == "") reference_continent <- selected_continents[1L]
   }
-  
-  compare_two_continents <-
-    is.null(selected_continents) &&
-    (reference_continent != "" || comparison_continent != "")
-  
-  #checks for 2 different continents and that "continent is primary predictor"
-  if (compare_two_continents) {
-    if (!"continent" %in% c(primary_predictor, moderator)) {
-      stop("Select continent as the predictor or moderator to compare two continents.")
-    }
-    
-    if (reference_continent == "" || comparison_continent == "") {
-      stop("Select both a reference continent and a comparison continent.")
-    }
-    
-    if (reference_continent == comparison_continent) {
-      stop("Choose two different continents.")
-    }
-    
-    continent_options <- unique(as.character(data$continent))
-    selected_continents <- c(reference_continent, comparison_continent)
-    
-    if (!all(selected_continents %in% continent_options)) {
-      stop("A selected continent is not present in the supplied data.")
-    }
-    
-    # Keep only countries from the two selected continents.
-    data <- data[
-      data$continent %in% selected_continents,
-      , drop = FALSE
-    ]
+
+  if (reference_continent != "" && !reference_continent %in% continent_options) {
+    stop("The reference continent is not present in the supplied data.")
   }
   
   # Prepare model data and exclude missing or nonfinite values ----
