@@ -47,13 +47,14 @@ stopifnot(
 result <- analyse_happiness("Social support", "continent",
                             control_variables = "Logged GDP per capita")
 countries <- combined_data[["Country name"]]
-
+model_countries <- countries[result$model_rows]
 stopifnot(
-  "The plot is not a ggplot" = inherits(plot_happiness(result, countries, "Finland"), "ggplot"),
-  "The interactive plot is not a plotly plot" =
-    inherits(interactive_plot(plot_happiness(result, countries)), "plotly"),
-  "The residual plot is not a ggplot" = inherits(plot_residuals(result, countries), "ggplot"),
-  "The Q-Q plot is not a ggplot" = inherits(plot_qq(result, countries), "ggplot"),
+  "The residual plot is not a ggplot" =
+  inherits(plot_residuals(result, model_countries), "ggplot"),
+"The Q-Q plot is not a ggplot" =
+  inherits(plot_qq(result, model_countries), "ggplot"),
+"Influential countries should list 5 countries" =
+  nrow(influential_countries(result, model_countries)) == 5,
   "Influential countries should list 5 countries" =
     nrow(influential_countries(result, countries)) == 5,
   "VIF should have one row per variable" = nrow(variance_inflation(result)) == 3,

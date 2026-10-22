@@ -49,7 +49,8 @@ plot_qq <- function(result, countries) {
 residual_order <- order(residual)
   checks <- data.frame(
     theoretical = stats::qnorm(stats::ppoints(length(residual))),
-    observed = residual[order],
+ observed = residual[residual_order],
+country = countries[residual_order],
     country = countries[as.integer(rownames(result$model_data))][order]
   )
   checks$tooltip <- paste0(
@@ -88,13 +89,24 @@ influential_countries <- function(result, countries, n = 5) {
 
   distance <- stats::cooks.distance(result$model)
   threshold <- 4 / length(distance)
+influential_countries <- function(result, countries, n = 5) {
+  # Validate the requested number of countries.
+  if (!is.numeric(n) || length(n) != 1L ||
+      !is.finite(n) || n < 1 || n != floor(n)) {
+    stop("n must be a positive whole number.")
+  }
+
+  distance <- stats::cooks.distance(result$model)
+  threshold <- 4 / length(distance)
 
   top <- order(distance, decreasing = TRUE)[
     seq_len(min(n, length(distance)))
   ]
 
+  rows <- as.integer(rownames(result$model_data))[top]
+
   data.frame(
-    Country = countries[top],
+    Country = countries[rows],
     Happiness = sprintf("%.2f", result$model_data$happiness[top]),
     Residual = sprintf("%+.2f", stats::residuals(result$model)[top]),
     `Cook's distance` = sprintf("%.3f", distance[top]),

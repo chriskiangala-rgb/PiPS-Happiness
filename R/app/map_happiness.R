@@ -17,7 +17,7 @@
 map_happiness <- function(result, data, layer = c("happiness", "predictor", "residual"),
                           highlight = "") {
   layer <- match.arg(layer)
-  rows <- as.integer(rownames(result$model_data))
+rows <- result$model_rows
   countries <- data[["Country name"]][rows]
   codes <- country_codes(data)[rows]
   happiness <- data$happiness[rows]
@@ -114,7 +114,7 @@ map_note <- function(result, data, layer) {
   )
   if (layer != "residual") return(sentences)
 
-  rows <- as.integer(rownames(result$model_data))
+ rows <- result$model_rows
   colours <- "Blue countries are happier than the model predicts, red countries unhappier."
   # Moran's I needs at least 3 countries with coordinates.
   if (sum(is.finite(data$Latitude[rows]) & is.finite(data$Longitude[rows])) < 3) {
