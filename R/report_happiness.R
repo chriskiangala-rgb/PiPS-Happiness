@@ -132,6 +132,59 @@ key_effect <- function(result) {
   )
 }
 
+#' Describe one country's place in the analysis
+#'
+#' Gives the country's happiness and predictor value with their ranks among
+#' the analysed countries, and how much happier or unhappier it is than the
+#' model predicts. If the country was not analysed, says why.
+#'
+#' @param country A country name.
+#' @param result The list returned by analyse_happiness().
+#' @param data All countries, before the user's selection.
+#' @param analysed_data The countries that were passed to analyse_happiness().
+#'
+#' @return A character vector with one sentence per element.
+country_profile <- function(country, result, data, analysed_data) {
+  if (!country %in% analysed_data[["Country name"]]) {
+    return("Left out by your selection of continents or countries.")
+  }
+  rows <- as.integer(rownames(result$model_data))
+  analysed_countries <- analysed_data[["Country name"]][rows]
+  if (!country %in% analysed_countries) {
+    variables <- c("happiness", result$primary, result$moderator)
+    values <- analysed_data[analysed_data[["Country name"]] == country, variables]
+    missing <- variables[vapply(values, function(value) is.na(value[[1]]), logical(1))]
+    return(sprintf("Not in this analysis: missing data on %s.", paste(missing, collapse = ", ")))
+  }
+
+  position <- match(country, analysed_countries)
+  n <- length(rows)
+  happiness <- result$model_data$happiness
+  predictor <- analysed_data[[result$primary]][rows]
+  residual <- stats::residuals(result$model)[position]
+
+  sentences <- sprintf(
+    "Happiness %.2f: number %d of %d countries.",
+    happiness[position], rank(-happiness, ties.method = "min")[position], n
+  )
+  sentences <- c(sentences, if (is.numeric(predictor)) {
+    sprintf("%s %s: number %d of %d countries.",
+            result$primary, format(signif(predictor[position], 3), big.mark = ","),
+            rank(-predictor, ties.method = "min")[position], n)
+  } else {
+    sprintf("%s: %s.", result$primary, predictor[position])
+  })
+  if (result$moderation) {
+    moderator <- analysed_data[[result$moderator]][rows][position]
+    if (is.numeric(moderator)) moderator <- format(signif(moderator, 3), big.mark = ",")
+    sentences <- c(sentences, sprintf("%s: %s.", result$moderator, moderator))
+  }
+  c(sentences, sprintf(
+    "%.2f points %s than the model predicts.",
+    abs(residual), if (residual >= 0) "happier" else "unhappier"
+  ))
+}
+
 # Helpers ----
 
 # Replace the internal names in a model term, e.g.
