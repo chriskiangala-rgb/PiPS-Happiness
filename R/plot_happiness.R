@@ -118,17 +118,24 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
       y = "Happiness (ladder score, 0-10)",
       colour = legend_title,
       fill = if (primary_is_numeric) legend_title,
-      caption = paste0(
-        result$n_countries, " countries. Lines and bands: model predictions with 95% CI",
-        if (length(result$control_variables) > 0) {
-          paste0(",\nwith ", paste(result$control_variables, collapse = ", "),
-                 " held at the mean or reference group")
-        },
-        "."
-      )
+      caption = plot_caption(result)
     ) +
     ggplot2::theme_minimal(base_size = 13) +
     ggplot2::theme(legend.position = if (result$moderation) "right" else "none")
+}
+
+# What the lines and bands show, and at which values the control variables
+# are held. Also shown below the plot in the app, because plotly drops the
+# caption of a ggplot.
+plot_caption <- function(result, line_break = "\n") {
+  paste0(
+    result$n_countries, " countries. Lines and bands: model predictions with 95% CI",
+    if (length(result$control_variables) > 0) {
+      paste0(",", line_break, "with ", paste(result$control_variables, collapse = ", "),
+             " held at the mean or reference group")
+    },
+    "."
+  )
 }
 
 # Build the values at which the model's predictions are plotted ----

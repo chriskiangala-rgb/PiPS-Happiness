@@ -200,7 +200,8 @@ happiness_app <- function(data, predictors,
         # Option to add a curved (spline) line next to the straight
         # model line, to show whether the association bends.
         # shiny::checkboxInput("show_curve", "Also show a curved line", FALSE),
-        plotly::plotlyOutput("plot", height = "460px")
+        plotly::plotlyOutput("plot", height = "460px"),
+        shiny::uiOutput("plot_note")
       ),
       bslib::nav_panel(
         "Model checks",
@@ -417,6 +418,9 @@ happiness_app <- function(data, predictors,
       }
       interactive_plot(plot)
     })
+    output$plot_note <- shiny::renderUI(
+      shiny::p(class = "small text-muted mt-2 mb-0", plot_caption(usable_result(), " "))
+    )
     output$summary <- shiny::renderUI(
       shiny::tags$ul(lapply(describe_result(usable_result()), shiny::tags$li))
     )
