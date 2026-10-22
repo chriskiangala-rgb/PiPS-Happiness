@@ -146,8 +146,10 @@ variance_inflation <- function(result) {
 
   data.frame(
     Variable = vapply(variable_names, label_term, character(1),
-                      primary = result$primary, moderator = result$moderator,
-                      controls = result$control_variables),
+                      primary = display_name(result, result$primary),
+                      moderator = display_name(result, result$moderator),
+                      controls = result$control_variables,
+                      control_labels = display_name(result, result$control_variables)),
     VIF = sprintf("%.2f", vif),
     Concern = ifelse(vif > 5, "High overlap", "OK"),
     row.names = NULL
