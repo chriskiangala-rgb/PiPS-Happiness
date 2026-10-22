@@ -86,11 +86,12 @@ happiness_app <- function(data, predictors,
       #   )
       # ),
 
-      # Choose which countries are analysed, to check whether a result
-      # depends on a few countries or on one part of the world, e.g. by
-      # leaving out the influential countries from the Model checks tab.
-      # The tiles always show how many countries were left out, so
-      # cherry-picking stays visible.
+      # Choose which continents are analysed, to check whether a result
+      # holds in one part of the world. Single countries cannot be left out:
+      # hand-picking which countries count biases the results (selection
+      # bias) and invites dropping countries for who they are rather than
+      # for a statistical reason. The tiles always show how many countries
+      # were left out.
       # PLANNED (needs PR 8 merged):
       # Once the two-continent comparison above exists, it only
       # needs the reference continent, since this filter picks the continents.
@@ -99,12 +100,6 @@ happiness_app <- function(data, predictors,
         choices = levels(data$continent), selected = levels(data$continent),
         multiple = TRUE,
         options = list(`actions-box` = TRUE)
-      ),
-      shinyWidgets::pickerInput(
-        "excluded_countries", "Leave out countries (optional)",
-        choices = sort(data[["Country name"]]),
-        multiple = TRUE,
-        options = list(`live-search` = TRUE, size = 10)
       ),
 
       # Highlight one country. Only changes what is shown, not the analysis.
@@ -215,8 +210,8 @@ happiness_app <- function(data, predictors,
             reactable::reactableOutput("influential_countries"),
             shiny::helpText(
               "Cook's distance: how much the predictions change without this country.",
-              "Above 4 / number of countries counts as influential; try leaving",
-              "these countries out to see whether the result holds."
+              "Above 4 / number of countries counts as influential: worth a look,",
+              "but not a reason to drop the country."
             )
           ),
           shiny::div(
@@ -298,13 +293,11 @@ happiness_app <- function(data, predictors,
     #   )
     # })
 
-    # The countries chosen in the sidebar. Everything that links results
-    # back to countries uses analysed_data(), because the results refer to
-    # its row numbers.
+    # The countries of the continents chosen in the sidebar. Everything
+    # that links results back to countries uses analysed_data(), because
+    # the results refer to its row numbers.
     analysed_data <- shiny::reactive({
-      keep <- data$continent %in% input$continents &
-        !data[["Country name"]] %in% input$excluded_countries
-      data[keep, , drop = FALSE]
+      data[data$continent %in% input$continents, , drop = FALSE]
     })
 
     # Some combinations cannot be estimated (e.g. too few countries);
