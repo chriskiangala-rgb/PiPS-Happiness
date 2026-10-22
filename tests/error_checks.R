@@ -4,6 +4,15 @@ source("R/analyse_happiness.R")
 
 #Error checks for the happiness data analysis
 
+# Check that data preparation created the objects used below
+stopifnot(
+  "Run the data preparation code first" = all(
+    c("world_data", "happiness_data", "combined_data", "name_changes",
+      "numeric_columns", "available_predictors", "unmatched_countries") %in%
+      ls(envir = globalenv())
+  )
+)
+
 #Check for unmatched countries
 
 print(unmatched_countries)
@@ -22,15 +31,6 @@ if (length(unmatched_countries) > 0) {
   )
 }
 
-# Check that the main script has created the objects used below
-
-stopifnot(
-  "Run the data preparation code first" = all(
-    c("world_data", "happiness_data", "combined_data", "name_changes",
-      "numeric_columns", "available_predictors") %in% ls(envir = globalenv())
-  )
-)
-
 # Check the imported datasets
 
 stopifnot(
@@ -40,6 +40,28 @@ stopifnot(
   "Duplicate column names in world_data"    = !anyDuplicated(names(world_data)),
   "Expected world_data columns missing"     = all(c("Country", "GDP", "Population") %in% names(world_data)),
   "Expected happiness_data columns missing" = all(c("Country name", "Ladder score") %in% names(happiness_data))
+)
+
+# Check that required columns exist before accessing them.
+stopifnot(
+  "join_country missing from happiness_data" =
+    "join_country" %in% names(happiness_data),
+
+  "join_country missing from world_data" =
+    "join_country" %in% names(world_data),
+
+  "Required combined_data columns missing" =
+    all(c("happiness", "GDP", "Population", "Unemployment rate", "continent") %in%
+          names(combined_data)),
+
+  "numeric_columns is empty" =
+    length(numeric_columns) > 0L,
+
+  "A numeric_columns entry is missing from combined_data" =
+    all(numeric_columns %in% names(combined_data)),
+
+  "Unemployment rate is not numeric" =
+    is.numeric(combined_data[["Unemployment rate"]])
 )
 
 # Check country names and duplicates
