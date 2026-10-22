@@ -246,7 +246,7 @@ analyse_happiness <- function(
   }
   
   selected_columns <- c("happiness", primary_predictor)
-  if (moderator != "") selected_columns = c(selected_columns, moderator)
+  if (moderator != "") selected_columns <- c(selected_columns, moderator)
   selected_columns <- c(selected_columns, control_variables)
   if (!all(selected_columns %in% names(data))) {
     stop("A selected column is missing from the supplied data.")
