@@ -39,6 +39,7 @@ With a moderator, the Plot tab shows a separate line per group. Here the effect 
 main.Rmd                        Main deliverable: run its app chunk to start the app
 install.R                       Installs the required packages (run once)
 references.bib                  References for main.Rmd (data, methods, R and packages)
+apa.csl                         APA 7th edition citation style for main.Rmd (Citation Style Language project)
 R/load_project.R                load_project(): loads the data and the high-level functions; the helpers stay out of the global environment
 R/prepare_data.R                Loads, merges and cleans the data; creates combined_data and available_predictors
 R/analysis/analyse_happiness.R  analyse_happiness(): regression of happiness on a predictor, with optional moderator, control variables, continent selection and a curve
