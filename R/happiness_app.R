@@ -183,28 +183,46 @@ happiness_app <- function(data, predictors) {
       ),
       bslib::nav_panel(
         "Model checks",
-        # PLANNED: checks of the regression assumptions, each with one line
-        # explaining what to look for.
-        # - Residuals against fitted values: a curve means the association is
-        #   not straight; a funnel means unequal spread (heteroskedasticity,
-        #   handled by the robust standard errors).
-        # - QQ plot of the residuals: points far from the line mean
-        #   non-normal residuals (matters little with ~130 countries).
-        # - Influential countries (Cook's distance), named, so you can see
-        #   whether a few countries drive the result.
-        # - VIF per variable when control variables are chosen, with a
-        #   warning above 5: the estimates are then uncertain because the
-        #   variables overlap.
-        # bslib::layout_columns(
-        #   col_widths = c(6, 6),
-        #   plotly::plotlyOutput("residual_plot", height = "320px"),
-        #   plotly::plotlyOutput("qq_plot", height = "320px")
-        # ),
-        # reactable::reactableOutput("influential_countries"),
-        # reactable::reactableOutput("vif_table"),
-        coming_soon(
-          "Checks of the model assumptions: residual plots, a QQ plot, the",
-          "most influential countries and, with control variables, the VIF."
+        # Each check gets one line on what to look for, so users without a
+        # statistics background can still read them.
+        bslib::layout_columns(
+          col_widths = c(6, 6),
+          shiny::div(
+            shiny::tags$h6("Residuals against predictions"),
+            plotly::plotlyOutput("residual_plot", height = "320px"),
+            shiny::helpText(
+              "Look for a pattern: a curved line means the association is not straight;",
+              "a funnel shape means the spread differs between countries."
+            )
+          ),
+          shiny::div(
+            shiny::tags$h6("Normality of the residuals"),
+            plotly::plotlyOutput("qq_plot", height = "320px"),
+            shiny::helpText(
+              "Points close to the dashed line mean roughly normal residuals.",
+              "With this many countries, small deviations matter little."
+            )
+          )
+        ),
+        bslib::layout_columns(
+          col_widths = c(7, 5),
+          shiny::div(
+            shiny::tags$h6("Most influential countries"),
+            reactable::reactableOutput("influential_countries"),
+            shiny::helpText(
+              "Cook's distance: how much the predictions change without this country.",
+              "Above 4 / number of countries counts as influential; try leaving",
+              "these countries out to see whether the result holds."
+            )
+          ),
+          shiny::div(
+            shiny::tags$h6("Overlap between variables (VIF)"),
+            shiny::uiOutput("vif"),
+            shiny::helpText(
+              "Above 5, the variables overlap so much that their separate",
+              "effects are hard to estimate."
+            )
+          )
         )
       ),
       bslib::nav_panel(
@@ -367,20 +385,25 @@ happiness_app <- function(data, predictors) {
     )
 
     # Model checks ----
-    # PLANNED: see the Model checks tab above for what they show.
-    # output$residual_plot <- plotly::renderPlotly(
-    #   interactive_plot(plot_residuals(usable_result(), data[["Country name"]]))
-    # )
-    # output$qq_plot <- plotly::renderPlotly(
-    #   interactive_plot(plot_qq(usable_result()))
-    # )
-    # output$influential_countries <- reactable::renderReactable(
-    #   reactable::reactable(influential_countries(usable_result(), data[["Country name"]]))
-    # )
-    # output$vif_table <- reactable::renderReactable({
-    #   shiny::req(length(usable_result()$controls) > 0)
-    #   reactable::reactable(variance_inflation(usable_result()))
-    # })
+    output$residual_plot <- plotly::renderPlotly(
+      interactive_plot(plot_residuals(usable_result(), data[["Country name"]]))
+    )
+    output$qq_plot <- plotly::renderPlotly(
+      interactive_plot(plot_qq(usable_result(), data[["Country name"]]))
+    )
+    output$influential_countries <- reactable::renderReactable(
+      reactable::reactable(
+        influential_countries(usable_result(), data[["Country name"]]),
+        compact = TRUE, pagination = FALSE
+      )
+    )
+    output$vif <- shiny::renderUI({
+      vif <- variance_inflation(usable_result())
+      if (is.null(vif)) {
+        return(shiny::p(class = "text-muted", "Needs at least two variables: choose a moderator."))
+      }
+      reactable::reactable(vif, compact = TRUE, pagination = FALSE)
+    })
 
     # About the data ----
     # PLANNED: output$variable_table <- reactable::renderReactable(
@@ -486,15 +509,9 @@ remove_empty_fonts <- function(settings) {
 #                        Grouped, labelled choices for the pickers.
 #
 # In analyse_happiness.R (results stored in the list it returns):
-#   z-scored numeric predictors, robust (HC3) standard errors, the robust
-#   interaction test, residuals per country, Cook's distance and VIF.
-#
-# In R/check_model.R:
-#   plot_residuals(result, countries)    Residuals against fitted values.
-#   plot_qq(result)                      QQ plot of the residuals.
-#   influential_countries(result, countries)
-#                                        Countries with the largest Cook's distance.
-#   variance_inflation(result)           VIF per variable, flagged above 5.
+#   z-scored numeric predictors (with their mean and SD in result$scaling),
+#   robust (HC3) standard errors, the robust interaction test, and the
+#   R-squared the predictor adds on top of the controls.
 #
 # In R/report_happiness.R:
 #   country_profile(country, result, data)

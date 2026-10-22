@@ -56,18 +56,11 @@ plot_happiness <- function(result, countries = NULL) {
   }
   if (!colour_points) point_settings$colour <- "grey50"
 
-  # ggplot2 does not use the "text" aesthetic itself and warns about it,
-  # but plotly reads it for the hover text.
-  points <- withCallingHandlers(
+  points <- muffle_text_aesthetic(
     do.call(point_layer, c(
       list(data = model_data, mapping = do.call(ggplot2::aes, point_mapping)),
       point_settings
-    )),
-    warning = function(warning) {
-      if (grepl("unknown aesthetics: text", conditionMessage(warning))) {
-        invokeRestart("muffleWarning")
-      }
-    }
+    ))
   )
   plot <- ggplot2::ggplot(predictions, ggplot2::aes(primary, fit)) + points
 
@@ -157,4 +150,18 @@ build_prediction_grid <- function(model_data, moderation) {
                    grid$primary <= group_max[group_name], , drop = FALSE]
   }
   grid
+}
+
+# ggplot2 does not use the "text" aesthetic itself and warns about it,
+# but plotly reads it for the hover text. Evaluates a layer without that
+# warning; other warnings still show.
+muffle_text_aesthetic <- function(layer) {
+  withCallingHandlers(
+    layer,
+    warning = function(warning) {
+      if (grepl("unknown aesthetics: text", conditionMessage(warning))) {
+        invokeRestart("muffleWarning")
+      }
+    }
+  )
 }
