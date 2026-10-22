@@ -58,6 +58,8 @@ Run everything with the repo root as working directory.
 
 Run `source("install.R")` once; it installs any required package you do not have yet. The list of packages lives in `install.R`; add new packages there.
 
+The app uses `shiny`, `bslib`, `shinyWidgets`, `plotly`, `ggplot2` and `reactable`. The analysis uses `sandwich` and `lmtest` for the HC3 robust standard errors and the robust Wald tests (Long & Ervin, 2000), and `splines` (part of R) for the curve option. `rmarkdown` knits `main.Rmd`.
+
 ## 7. Methods
 
 We regress each country’s happiness—the **World Happiness Report 2023 ladder score**—on one predictor at a time, optionally including a moderator and control variables. The number of countries included depends on the variables selected and the available data.
@@ -88,11 +90,11 @@ We checked the regression assumptions for **35 predictors**, each in the simple 
 - **Exploratory analysis:** Testing many predictors and combinations increases the chance of statistically significant findings occurring by chance. Results should be treated as hypotheses for further testing rather than definitive conclusions.
   
 ## 8. Student Roles
-Diemithry (...)  
+Diemithry was primarily responsible for the app: the Shiny app that lets users explore the data and run the analysis interactively. Diemithry also contributed to the analysis code and its checks, and reviewed pull requests of the other group members.  
 Tian (...)  
 Christian was the project leader and was responsible for the README and the repository structure. He also created an error check file and reviewed code.
 ## 9. AI statement
-Diemithry (...)  
+Diemithry used Claude (Claude Code) to help write, test and review the code of the app and the analysis, to run the assumption checks, and to draft README text and pull request descriptions. Every change was checked and tested before it was committed.  
 Tian (...)  
 Christian used LLMs (UvA AI Chat and Claude) to help write and review code and to get feedback on the repository and README structure. 
 ## 10. References

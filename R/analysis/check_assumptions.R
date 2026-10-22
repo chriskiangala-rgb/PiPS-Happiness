@@ -1,5 +1,5 @@
 # Check the assumptions of the regression ----
-# The numbers in README section 8 come from check_assumptions(); main.Rmd
+# The numbers in the README's Methods section come from check_assumptions(); main.Rmd
 # runs it, so they follow the data and the code.
 
 #' Check the regression assumptions for every predictor
@@ -29,7 +29,7 @@
 #' @param alpha Significance level for the counts.
 #'
 #' @return A list with per_predictor (one row per predictor), summary (the
-#'   counts in README section 8), spatial (Moran's I) and clustered.
+#'   counts in the README's Methods section), spatial (Moran's I) and clustered.
 check_assumptions <- function(
     data = combined_data,
     predictors = available_predictors,
