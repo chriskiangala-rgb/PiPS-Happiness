@@ -33,9 +33,10 @@ continents, after controlling for Logged GDP per capita?
 
 **Data and method**
 
-We use the country-level data loaded during setup. Happiness is the outcome,
-social support is the primary predictor, continent is the moderator, and
-Logged GDP per capita is the control variable.
+We use country-level happiness data from the World Happiness Report 2023
+[@helliwell2023; @singh2023]. Happiness is the outcome, social support is
+the primary predictor, continent is the moderator, and Logged GDP per
+capita is the control variable.
 
 We fit a linear regression with an interaction between social support and
 continent. This allows the association between social support and happiness
@@ -44,8 +45,9 @@ these differences improve the model compared with a model without the
 interaction.
 
 We use HC3 robust standard errors, which allow the residual spread to vary
-between countries. Countries with missing or nonfinite values are excluded.
-Continents with fewer than five countries with complete data are also excluded.
+between countries [@long2000]. Countries with missing or nonfinite values
+are excluded. Continents with fewer than five countries with complete
+data are also excluded.
 
 ```{r analysis}
 social_support_result <- analyse_happiness(
@@ -106,17 +108,23 @@ assumption_checks <- check_assumptions()
 knitr::kable(assumption_checks$summary)
 ```
 
-Nearby countries are more alike than the model predicts (Moran's I of the
-residuals), less so with continent as control:
+We assess spatial dependence in the residuals using Moran's I, comparing
+models with and without continent as a control [@moran1950]:
 
 ```{r spatial}
 knitr::kable(assumption_checks$spatial, digits = 3)
 ```
 
-The effect with continent as control, with standard errors clustered by
-continent (a robustness check; with only 6 clusters, interpret it with
-caution):
+For selected predictors, we include continent as a control and calculate
+standard errors clustered by continent [@zeileis2020]. These are robustness
+checks for separate models, not the moderation model above. Interpret them
+cautiously because the number of clusters is small:
 
 ```{r clustered}
 knitr::kable(assumption_checks$clustered, digits = 3)
 ```
+
+## References
+
+::: {#refs}
+:::
