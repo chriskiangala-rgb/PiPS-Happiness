@@ -198,7 +198,11 @@ stopifnot(
 print(predictor_types, row.names = FALSE)
 
 # Define happiness regression with an optional moderator ----
-# added two optional continent selections to the function
+# added two optional continent selections to the function when using continent as predictor
+  #reference_continent is the continent you want to use as reference
+  #comparison_continent is the continent you want to use as comparison to the reference continent
+#control_variables is the variable(s) you want to control for in you analysis
+
 analyse_happiness <- function(
     primary_predictor,
     moderator = "",
@@ -206,7 +210,8 @@ analyse_happiness <- function(
     predictors = available_predictors,
     reference_continent = "",
     comparison_continent = "",
-    control_variables = character(0)
+    control_variables = character(0),
+    selected_continents = NULL
 ) {
   # Validate selected predictors and outcome ----
   
@@ -224,11 +229,11 @@ analyse_happiness <- function(
   }
   
   # Validate optional control variables, variable should not also be the predictor or moderator 
-  if (is.null(control_variables)) control_variables = character(0)
+  if (is.null(control_variables)) control_variables <- character(0)
   if (!is.character(control_variables) || anyNA(control_variables)) {
     stop("Choose valid control variables or leave the selection empty.")
   }
-  control_variables = unique(control_variables[control_variables != ""])
+  control_variables <- unique(control_variables[control_variables != ""])
   
   if (!all(control_variables %in% predictors)) {
     stop("A selected control variable is not available.")
@@ -237,16 +242,16 @@ analyse_happiness <- function(
     stop("Control variables must differ from the primary predictor and moderator.")
   }
   
-  selected_columns = c("happiness", primary_predictor)
+  selected_columns <- c("happiness", primary_predictor)
   if (moderator != "") selected_columns = c(selected_columns, moderator)
-  selected_columns = c(selected_columns, control_variables)
+  selected_columns <- c(selected_columns, control_variables)
   if (!all(selected_columns %in% names(data))) {
     stop("A selected column is missing from the supplied data.")
   }
   if (!is.numeric(data$happiness)) stop("Happiness must be numeric.")
   
   
-  # Optionally compare two selected continents ----
+  # Optionally compare two selected continents as moderator ----
   # Both selections must be single text values.
   for (selection in list(reference_continent, comparison_continent)) {
     if (!is.character(selection) ||
@@ -256,8 +261,52 @@ analyse_happiness <- function(
     }
   }
   
+  # Optionally select two or more continents.
+  if (!is.null(selected_continents)) {
+    if (!"continent" %in% c(primary_predictor, moderator)) {
+      stop("Select continent as the predictor or moderator to compare continents.")
+    }
+    
+    if (comparison_continent != "") {
+      stop("Use selected_continents OR comparison_continent, not both.")
+    }
+    
+    if (!is.character(selected_continents) || anyNA(selected_continents)) {
+      stop("Provide selected_continents as a character vector of continent names.")
+    }
+    
+    selected_continents <- unique(selected_continents)
+    
+    if (length(selected_continents) < 2L) {
+      stop("Select at least two different continents.")
+    }
+    
+    continent_options <- unique(as.character(data$continent))
+    
+    if (!all(selected_continents %in% continent_options)) {
+      stop("A selected continent is not present in the supplied data.")
+    }
+    
+    if (reference_continent != "" &&
+        !reference_continent %in% selected_continents) {
+      stop("The reference continent must be among the selected continents.")
+    }
+    
+    # Keep only countries from the selected continents.
+    data <- data[
+      data$continent %in% selected_continents,
+      , drop = FALSE
+    ]
+    
+    # Default reference: the first selected continent.
+    if (reference_continent == "") {
+      reference_continent <- selected_continents[1L]
+    }
+  }
+  
   compare_two_continents <-
-    reference_continent != "" || comparison_continent != ""
+    is.null(selected_continents) &&
+    (reference_continent != "" || comparison_continent != "")
   
   #checks for 2 different continents and that "continent is primary predictor"
   if (compare_two_continents) {
@@ -332,13 +381,17 @@ analyse_happiness <- function(
       stop(paste("No variation in", column, "among the available countries."))
     }
     if (is.factor(model_data[[column]])) {
-      # Use the chosen continent as the reference group.
-      if (column == "primary" && compare_two_continents) {
+      # Set the reference on whichever column represents continent (primary predictor or moderator).
+        #If continent is the primary predictor, it applies the reference to model_data$primary
+        #If continent is the moderator, it applies the reference to model_data$moderator.
+      if (!is.null(selected_continents) &&
+          ((column == "primary" && primary_predictor == "continent") ||
+           (column == "moderator" && moderator == "continent"))) {
+        
         if (!all(
-          c(reference_continent, comparison_continent) %in%
-          levels(model_data[[column]])
+          selected_continents %in% levels(model_data[[column]])
         )) {
-          stop("Both selected continents need usable data for this model.")
+          stop("Every selected continent needs usable data for this model.")
         }
         
         model_data[[column]] <- relevel(
