@@ -151,8 +151,8 @@ plot_caption <- function(result, line_break = "\n") {
     if (identical(result$shape, "curve")) "Curve (natural spline)" else "Lines",
     " and bands: model predictions with 95% CI",
     if (length(result$control_variables) > 0) {
-      paste0(",", line_break, "with ", paste(display_name(result, result$control_variables), collapse = ", "),
-             " held at the mean or reference group")
+      controls <- paste(display_name(result, result$control_variables), collapse = ", ")
+      paste0(",", line_break, "with ", controls, " held at the mean or reference group")
     },
     "."
   )
@@ -228,7 +228,7 @@ prediction_values <- function(model_data, moderation) {
   # Numeric moderator: show the slope at one SD below the mean, the mean,
   # and one SD above the mean.
   if (is.numeric(moderator)) {
-    moderator_values <- mean(moderator) + c(-1, 0, 1) * sd(moderator)
+    moderator_values <- mean(moderator) + c(-1, 0, 1) * stats::sd(moderator)
     group_labels <- c("Low (-1 SD)", "Average", "High (+1 SD)")
     grid <- expand.grid(primary = primary_values, group = group_labels,
                         stringsAsFactors = FALSE)

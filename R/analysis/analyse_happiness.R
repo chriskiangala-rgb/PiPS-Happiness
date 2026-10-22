@@ -1,24 +1,42 @@
 # Define happiness regression with an optional moderator ----
-# primary_predictor: the variable whose link with happiness you want to see.
-# moderator: optional variable that may change that link ("" for none).
-# control_variables: optional variables to adjust for (any number).
-# selected_continents: optional, two or more continents to keep; countries on
-#   other continents are left out. Needs continent as predictor or moderator.
-# reference_continent: optional continent the other continents are compared
-#   with. Defaults to the first of selected_continents, otherwise to the first
-#   continent alphabetically. Needs continent as predictor or moderator.
-# robust: HC3 standard errors, CIs and p-values (Long & Ervin, 2000), which
-#   do not assume an equal spread of the residuals. FALSE gives the normal ones.
-# min_group_size: groups of a categorical predictor or moderator with fewer
-#   countries are left out, because they cannot get a reliable estimate of
-#   their own (with HC3, a group of 2 makes every standard error unknown).
-#   The result lists them in excluded_groups.
-# shape: "line" (a straight line) or "curve": a natural spline with 3
-#   degrees of freedom for a numeric predictor, which can bend where the
-#   data bend. Not combined with a moderator: a curve per group needs too
-#   many coefficients for groups of about ten countries. The result then
-#   also compares the curve with the straight line (curve_test).
 
+#' Regress happiness on a predictor
+#'
+#' Fits a linear regression of happiness on one predictor, optionally with a
+#' moderator, control variables, a selection of continents and a curve, and
+#' returns the coefficients with HC3 standard errors by default.
+#'
+#' @param primary_predictor The variable whose link with happiness you want
+#'   to see.
+#' @param moderator Optional variable that may change that link ("" for
+#'   none).
+#' @param data Data frame with happiness and the predictors.
+#' @param predictors The variables that may be chosen.
+#' @param reference_continent Optional continent the other continents are
+#'   compared with. Defaults to the first of selected_continents, otherwise
+#'   to the first continent alphabetically. Needs continent as predictor or
+#'   moderator.
+#' @param control_variables Optional variables to adjust for (any number).
+#' @param selected_continents Optional, two or more continents to keep;
+#'   countries on other continents are left out. Needs continent as
+#'   predictor or moderator.
+#' @param robust TRUE for HC3 standard errors, CIs and p-values (Long &
+#'   Ervin, 2000), which do not assume an equal spread of the residuals.
+#'   FALSE gives the normal ones.
+#' @param min_group_size Groups of a categorical predictor or moderator with
+#'   fewer countries are left out, because they cannot get a reliable
+#'   estimate of their own (with HC3, a group of 2 makes every standard error
+#'   unknown). The result lists them in excluded_groups.
+#' @param shape "line" (a straight line) or "curve": a natural spline with 3
+#'   degrees of freedom for a numeric predictor, which can bend where the
+#'   data bend. Not combined with a moderator: a curve per group needs too
+#'   many coefficients for groups of about ten countries. The result then
+#'   also compares the curve with the straight line (curve_test).
+#'
+#' @return A list with the model, its coefficients (all, for the predictor
+#'   and for the interactions), the moderation test, the number of countries
+#'   used and left out, R-squared, the covariance used, the curve test for a
+#'   curve, and the data and rows the model was fitted on.
 analyse_happiness <- function(
     primary_predictor,
     moderator = "",
@@ -33,7 +51,7 @@ analyse_happiness <- function(
 ) {
   shape <- match.arg(shape)
   # Validate selected predictors and outcome ----
-  
+
   if (length(primary_predictor) != 1L || is.na(primary_predictor) ||
       !primary_predictor %in% predictors) {
     stop("Choose a valid primary predictor.")
@@ -56,21 +74,21 @@ analyse_happiness <- function(
   if (shape == "curve" && moderator != "") {
     stop("A curve cannot be combined with a moderator: choose a straight line or no moderator.")
   }
-  
-  # Validate optional control variables, variable should not also be the predictor or moderator 
+
+  # Validate optional control variables, variable should not also be the predictor or moderator
   if (is.null(control_variables)) control_variables <- character(0)
   if (!is.character(control_variables) || anyNA(control_variables)) {
     stop("Choose valid control variables or leave the selection empty.")
   }
   control_variables <- unique(control_variables[control_variables != ""])
-  
+
   if (!all(control_variables %in% predictors)) {
     stop("A selected control variable is not available.")
   }
   if (any(control_variables %in% c(primary_predictor, moderator))) {
     stop("Control variables must differ from the primary predictor and moderator.")
   }
-  
+
   selected_columns <- c("happiness", primary_predictor)
   if (moderator != "") selected_columns <- c(selected_columns, moderator)
   selected_columns <- c(selected_columns, control_variables)
@@ -78,8 +96,8 @@ analyse_happiness <- function(
     stop("A selected column is missing from the supplied data.")
   }
   if (!is.numeric(data$happiness)) stop("Happiness must be numeric.")
-  
-  
+
+
   # Optionally select continents and a reference continent ----
   if (!is.character(reference_continent) ||
       length(reference_continent) != 1L ||
@@ -117,9 +135,9 @@ analyse_happiness <- function(
   if (reference_continent != "" && !reference_continent %in% continent_options) {
     stop("The reference continent is not present in the supplied data.")
   }
-  
+
   # Prepare model data and exclude missing or nonfinite values ----
-  
+
   # Internal names avoid problems with spaces in original column names.
   model_data <- data.frame(
     happiness = data$happiness,
@@ -131,13 +149,13 @@ analyse_happiness <- function(
   } else {
     character(0)
   }
-  
+
   for (i in seq_along(control_variables)) {
     model_data[[control_names[i]]] <- data[[control_variables[i]]]
   }
 
   # Real variable name of each internal name, for messages and labels.
-  real_names <- c(primary = primary_predictor, setNames(control_variables, control_names))
+  real_names <- c(primary = primary_predictor, stats::setNames(control_variables, control_names))
   if (moderator != "") real_names["moderator"] <- moderator
 
   # Use complete, finite values for every selected variable.
@@ -185,9 +203,9 @@ analyse_happiness <- function(
   if (nrow(model_data) < 3L) {
     stop("Too few countries with complete data for these selections.")
   }
-  
+
   # Set categorical reference groups and check variable variation ----
-  
+
   # Nonnumeric predictors become factors. Numeric-coded categories must
   # already be converted to factors in your data-preparation steps.
   for (column in setdiff(names(model_data), "happiness")) {
@@ -203,22 +221,22 @@ analyse_happiness <- function(
       if (reference_continent != "" &&
           ((column == "primary" && primary_predictor == "continent") ||
            (column == "moderator" && moderator == "continent"))) {
-        
+
         if (!all(
           c(reference_continent, selected_continents) %in%
             levels(model_data[[column]])
         )) {
           stop("Every selected continent needs usable data for this model.")
         }
-        
-        model_data[[column]] <- relevel(
+
+        model_data[[column]] <- stats::relevel(
           model_data[[column]],
           ref = reference_continent
         )
       }
-      
+
       # Explicit treatment coding: first level is the reference category.
-      contrasts(model_data[[column]]) <- contr.treatment(
+      stats::contrasts(model_data[[column]]) <- stats::contr.treatment(
         levels(model_data[[column]]), base = 1
       )
     }
@@ -231,9 +249,9 @@ analyse_happiness <- function(
     stop(paste("A curve needs a numeric predictor with at least 5 different values;",
                real_names[["primary"]], "is not one."))
   }
-  
+
   # Fit the regression model and check estimability ----
-  
+
   # * includes both main effects AND their interaction.
   # A curve is a natural spline of the predictor. ns() is found through
   # this function's environment (the formula's), also when the model
@@ -246,21 +264,22 @@ analyse_happiness <- function(
   } else {
     "primary * moderator"
   }
-  
-  #include every selected control as an additive adjustment, whether or not you select a moderator.
-  formula <- reformulate(
+
+  # Every selected control is an additive adjustment, with or without a
+  # moderator.
+  formula <- stats::reformulate(
     termlabels = c(main_terms, control_names),
     response = "happiness"
   )
-  model <- lm(formula, data = model_data)
-  
-  if (model$rank < ncol(model.matrix(model))) {
+  model <- stats::lm(formula, data = model_data)
+
+  if (model$rank < ncol(stats::model.matrix(model))) {
     stop("The model cannot estimate all coefficients independently. Choose different variables or groups.")
   }
-  if (df.residual(model) < 1L) {
+  if (stats::df.residual(model) < 1L) {
     stop("Too few countries for this model, possibly because there are too many categories or interactions.")
   }
-  
+
   # Extract coefficients, p-values, and confidence intervals ----
 
   # HC3 does not assume an equal spread of the residuals; it cannot be
@@ -279,7 +298,7 @@ analyse_happiness <- function(
     ci_upper = intervals[, 2],
     row.names = NULL
   )
-  
+
   # Separate primary and interaction coefficients ----
 
   # Decide this on the internal names, before the real control names are put
@@ -290,7 +309,7 @@ analyse_happiness <- function(
 
   # Show the real names of the control variables instead of control1, control2, ...
   # Map each coefficient to its formula term instead of guessing from its name.
-  design_matrix <- model.matrix(model)
+  design_matrix <- stats::model.matrix(model)
   coefficient_assignment <- attr(design_matrix, "assign")
   formula_terms <- attr(terms(model), "term.labels")
 
@@ -318,9 +337,9 @@ analyse_happiness <- function(
   interaction_coefficients <- coefficient_table[
     is_interaction, , drop = FALSE
   ]
-  
+
   # Test the overall interaction against the additive model ----
-  
+
   # Overall moderation test: compare the additive and interaction models
   # using exactly the same countries. This tests all interaction terms jointly,
   # which is important when a categorical variable has more than two levels.
@@ -329,11 +348,11 @@ analyse_happiness <- function(
   additive_model <- NULL
 
   if (moderator != "") {
-    additive_formula = reformulate(
+    additive_formula = stats::reformulate(
       termlabels = c("primary", "moderator", control_names),
       response = "happiness"
     )
-    additive_model = lm(additive_formula, data = model_data)
+    additive_model = stats::lm(additive_formula, data = model_data)
     comparison = lmtest::waldtest(additive_model, model, vcov = covariance, test = "F")
     interaction_test = data.frame(
       df_added = comparison$Df[2],
@@ -341,7 +360,7 @@ analyse_happiness <- function(
       p_value = comparison$`Pr(>F)`[2]
     )
   }
-  
+
   # Compare the curve with the straight line ----
 
   # Both on the same countries and with the same controls; the Wald test
@@ -350,25 +369,25 @@ analyse_happiness <- function(
   curve_test <- NULL
   line_r_squared <- NULL
   if (shape == "curve") {
-    line_model <- lm(reformulate(c("primary", control_names), response = "happiness"),
+    line_model <- stats::lm(stats::reformulate(c("primary", control_names), response = "happiness"),
                      data = model_data)
     curve_test <- curve_wald_test(model, covariance, model_data$primary)
     line_r_squared <- summary(line_model)$r.squared
   }
 
   # Identify reference categories and return analysis results ----
-  
+
   reference_categories <- lapply(
     model_data[vapply(model_data, is.factor, logical(1))],
     function(column) levels(column)[1]
   )
-  
+
   list(
     primary = primary_predictor,
     moderator = if (moderator == "") NULL else moderator,
     moderation = moderator != "",
     control_variables = control_variables,
-    control_mapping = setNames(control_variables, control_names),
+    control_mapping = stats::setNames(control_variables, control_names),
     n_countries = nrow(model_data),
     n_excluded = n_excluded,
     n_small_groups = n_small_groups,
@@ -418,7 +437,8 @@ curve_wald_test <- function(model, covariance, primary) {
   restrictions <- matrix(0, ncol(directions), ncol(design))
   restrictions[, spline_columns] <- t(directions)
   difference <- restrictions %*% stats::coef(model)
-  wald <- drop(t(difference) %*% solve(restrictions %*% covariance %*% t(restrictions)) %*% difference)
+  restricted_covariance <- restrictions %*% covariance %*% t(restrictions)
+  wald <- drop(t(difference) %*% solve(restricted_covariance) %*% difference)
   df_added <- nrow(restrictions)
   f_value <- wald / df_added
   data.frame(

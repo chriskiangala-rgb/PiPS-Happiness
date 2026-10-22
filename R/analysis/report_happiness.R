@@ -53,7 +53,8 @@ describe_result <- function(result, sd = NULL) {
   if (length(controls) > 0) {
     sentences <- c(sentences, sprintf(
       "Controlling for %s: the results compare countries that are equal on %s.",
-      paste(display_name(result, controls), collapse = ", "), if (length(controls) == 1) "it" else "these"
+      paste(display_name(result, controls), collapse = ", "),
+      if (length(controls) == 1) "it" else "these"
     ))
   }
 
@@ -73,7 +74,11 @@ describe_result <- function(result, sd = NULL) {
       scale <- log_scale(result$primary)
       sentences <- c(sentences, sprintf(
         "Countries with %s have a %.2f points %s happiness score on average (95%% CI [%.2f, %.2f], p %s).",
-        if (is.null(scale)) paste("a one-unit higher", primary) else paste("10 times more", scale$name),
+        if (is.null(scale)) {
+          paste("a one-unit higher", primary)
+        } else {
+          paste("10 times more", scale$name)
+        },
         abs(slope$estimate * step),
         if (slope$estimate >= 0) "higher" else "lower",
         slope$ci_lower * step, slope$ci_upper * step,
@@ -117,7 +122,7 @@ describe_result <- function(result, sd = NULL) {
       "Adding the interaction between %s and %s %s the model (F(%d, %d) = %.2f, p %s).",
       primary, moderator,
       if (significant) "significantly improves" else "does not significantly improve",
-      as.integer(test$df_added), as.integer(df.residual(result$model)),
+      as.integer(test$df_added), as.integer(stats::df.residual(result$model)),
       test$f_value, format_p(test$p_value, with_sign = TRUE)
     ))
     sentences <- c(sentences, if (significant) {
@@ -130,10 +135,15 @@ describe_result <- function(result, sd = NULL) {
   }
 
   curve <- curvature_test(result)
-  if (!is.null(curve) && curve$misleading) sentences <- c(sentences, describe_curvature(curve, result))
+  if (!is.null(curve) && curve$misleading) {
+    sentences <- c(sentences, describe_curvature(curve, result))
+  }
 
   if (isTRUE(result$robust)) {
-    sentences <- c(sentences, "Standard errors, confidence intervals and p-values are robust (HC3): they do not assume that the spread around the line is the same for every country.")
+    sentences <- c(sentences, paste(
+      "Standard errors, confidence intervals and p-values are robust (HC3):",
+      "they do not assume that the spread around the line is the same for every country."
+    ))
   }
 
   c(sentences, "These are country-level associations: they do not show causal effects or effects on individual people.")
@@ -215,7 +225,8 @@ key_effect <- function(result, countries = NULL, sd = NULL) {
     slope <- result$primary_coefficients
     step <- ten_times(result$primary)
     return(list(
-      title = paste("Change in happiness", per_step(result$primary, display_name(result, result$primary))),
+      title = paste("Change in happiness",
+                    per_step(result$primary, display_name(result, result$primary))),
       value = sprintf("%+.2f", slope$estimate * step),
       detail = sprintf("95%% CI [%.2f, %.2f], p %s",
                        slope$ci_lower * step, slope$ci_upper * step,
@@ -251,7 +262,11 @@ describe_interaction <- function(term, result) {
   moderator_numeric <- is.numeric(result$model_data$moderator)
   # "Social support", or "10 times more GDP per person" for a logged predictor.
   scale <- log_scale(result$primary)
-  primary <- if (is.null(scale)) display_name(result, result$primary) else paste("10 times more", scale$name)
+  primary <- if (is.null(scale)) {
+    display_name(result, result$primary)
+  } else {
+    paste("10 times more", scale$name)
+  }
   moderator_step <- per_step(result$moderator, display_name(result, result$moderator))
   if (primary_numeric && moderator_numeric) {
     sprintf("Change in the effect of %s %s", primary, moderator_step)
@@ -297,7 +312,8 @@ largest_difference <- function(model, groups, covariance = stats::vcov(model)) {
   largest <- differences[which.max(abs(differences$estimate)), ]
   if (largest$estimate < 0) {
     largest[c("higher", "lower")] <- largest[c("lower", "higher")]
-    largest[c("estimate", "ci_lower", "ci_upper")] <- -largest[c("estimate", "ci_upper", "ci_lower")]
+    largest[c("estimate", "ci_lower", "ci_upper")] <-
+      -largest[c("estimate", "ci_upper", "ci_lower")]
   }
   largest$n_comparisons <- nrow(differences)
   largest
@@ -376,7 +392,11 @@ country_profile <- function(country, result, data, analysed_data) {
     # The same rule as analyse_happiness(): no NA, infinite or blank values.
     missing <- variables[vapply(values, function(value) {
       value <- value[[1]]
-      if (is.numeric(value)) !is.finite(value) else is.na(value) || trimws(as.character(value)) == ""
+      if (is.numeric(value)) {
+        !is.finite(value)
+      } else {
+        is.na(value) || trimws(as.character(value)) == ""
+      }
     }, logical(1))]
     return(sprintf("Not in this analysis: missing data on %s.",
                    paste(display_name(result, missing), collapse = ", ")))
@@ -427,7 +447,8 @@ country_profile <- function(country, result, data, analysed_data) {
 #'
 #' Adds the squared and cubed predictor (standardised first, so large
 #' variables stay computable) to the model and tests whether that improves
-#' the fit, with a Wald test (HC3 when the result is robust). The same rule as the assumption checks:
+#' the fit, with a Wald test (HC3 when the result is robust). The same
+#' rule is used by check_assumptions() for the Methods section:
 #' the line misleads when the curve fits significantly better and either
 #' the line explains less than 80% of what the curve explains, or the curve
 #' goes the other way than the line over more than 10% of the predictor's
@@ -527,8 +548,8 @@ curve_difference <- function(result) {
   grid <- hold_controls(data.frame(primary = values), result$model_data,
                         names(result$control_mapping))
   predictors <- stats::delete.response(stats::terms(model))
-  design <- stats::model.matrix(predictors, stats::model.frame(predictors, grid, xlev = model$xlevels),
-                                contrasts.arg = model$contrasts)
+  frame <- stats::model.frame(predictors, grid, xlev = model$xlevels)
+  design <- stats::model.matrix(predictors, frame, contrasts.arg = model$contrasts)
   contrast <- design[2, ] - design[1, ]
   covariance <- if (is.null(result$covariance)) stats::vcov(model) else result$covariance
   estimate <- sum(contrast * stats::coef(model))
