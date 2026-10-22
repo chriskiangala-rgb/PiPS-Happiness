@@ -21,6 +21,7 @@ R/report_happiness.R     Readable coefficient table, plain-language summary and 
 R/app/happiness_app.R    happiness_app(): the Shiny app
 R/app/map_happiness.R    World map of happiness, the predictor or the residuals, with Moran's I
 R/app/check_model.R      Model checks: residual plots, influential countries and VIF
+R/app/predictor_groups.R Groups the predictors by theme for the app's menus
 examples/examples.R      Example analyses with explanation: source("examples/examples.R")
 tests/error_checks.R     Checks that the data and analysis work: source("tests/error_checks.R")
 data/WHR2023.csv         World Happiness Report 2023

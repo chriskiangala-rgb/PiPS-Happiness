@@ -14,9 +14,17 @@
 #'
 #' @param data The combined dataset (combined_data from prepare_data.R).
 #' @param predictors The variable names the user can choose from.
+#' @param predictor_groups Optional named list that splits predictors into
+#'   groups for the menus, e.g. by data source. Every predictor must be in
+#'   exactly one group. By default: numeric variables and categories.
 #'
 #' @return A Shiny app object; start it with shiny::runApp().
-happiness_app <- function(data, predictors) {
+happiness_app <- function(data, predictors,
+                          predictor_groups = group_by_type(data, predictors)) {
+  if (!setequal(unlist(predictor_groups), predictors) ||
+      anyDuplicated(unlist(predictor_groups))) {
+    stop("predictor_groups must contain every predictor exactly once.")
+  }
   default_predictor <- if ("Social support" %in% predictors) "Social support" else predictors[1]
 
   ui <- bslib::page_sidebar(
@@ -28,20 +36,18 @@ happiness_app <- function(data, predictors) {
       bg = app_colours$sidebar,
 
       # PLANNED (needs a variable list in prepare_data.R):
-      # Group the choices into "WHR factors", "Country facts" and
-      # "Categories", and show readable names with units, e.g.
-      # "Tax revenue (% of GDP)". Both come from a variable list in
-      # prepare_data.R (name, label, unit, group, transformation), so the
-      # menus, the plot axis and the "About the data" tab share one source:
-      #   choices = predictor_menu(variable_info, predictors)
+      # Show readable names with units, e.g. "Tax revenue (% of GDP)",
+      # taken from a variable list in prepare_data.R (name, label, unit,
+      # transformation), so the menus, the plot axis and the "About the
+      # data" tab share one source.
       shinyWidgets::pickerInput(
         "primary", "Predictor",
-        choices = predictors, selected = default_predictor,
+        choices = predictor_menu(predictor_groups), selected = default_predictor,
         options = list(`live-search` = TRUE, size = 10)
       ),
       shinyWidgets::pickerInput(
         "moderator", "Moderator (optional)",
-        choices = moderator_choices(predictors, default_predictor),
+        choices = moderator_choices(predictor_groups, default_predictor),
         options = list(`live-search` = TRUE, size = 10)
       ),
       shiny::helpText(
@@ -276,7 +282,7 @@ happiness_app <- function(data, predictors) {
       current <- shiny::isolate(input$moderator)
       shinyWidgets::updatePickerInput(
         session, "moderator",
-        choices = moderator_choices(predictors, input$primary),
+        choices = moderator_choices(predictor_groups, input$primary),
         selected = if (!identical(current, input$primary)) current else ""
       )
     })
@@ -437,9 +443,28 @@ happiness_app <- function(data, predictors) {
 
 # Helpers ----
 
+# Group predictors as numeric variables and categories, the default for
+# the menus when no other grouping is given.
+group_by_type <- function(data, predictors) {
+  is_numeric <- vapply(data[predictors], is.numeric, logical(1))
+  list(Numeric = predictors[is_numeric], Categories = predictors[!is_numeric])
+}
+
+# The menu of predictors: one group per heading, sorted alphabetically
+# within each group. as.list() keeps a group with a single variable a
+# group instead of turning it into one option.
+predictor_menu <- function(predictor_groups) {
+  predictor_groups <- predictor_groups[lengths(predictor_groups) > 0]
+  lapply(predictor_groups, function(group) {
+    group <- group[order(tolower(group))]
+    stats::setNames(as.list(group), group)
+  })
+}
+
 # The moderator menu: "None" plus every predictor except the chosen one.
-moderator_choices <- function(predictors, primary) {
-  c("None" = "", setdiff(predictors, primary))
+moderator_choices <- function(predictor_groups, primary) {
+  remaining <- lapply(predictor_groups, setdiff, primary)
+  c(list(None = ""), predictor_menu(remaining))
 }
 
 # Stands in for a part of the app that is planned but not built yet.

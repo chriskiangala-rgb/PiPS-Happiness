@@ -8,5 +8,8 @@ for (file in list.files("R", recursive = TRUE, full.names = TRUE)) source(file)
 ```
 
 ```{r app, eval = FALSE}
-shiny::runApp(happiness_app(combined_data, available_predictors))
+shiny::runApp(happiness_app(
+  combined_data, available_predictors,
+  predictor_groups = group_predictors(available_predictors)
+))
 ```
