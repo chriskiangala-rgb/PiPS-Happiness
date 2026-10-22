@@ -15,7 +15,7 @@ Readme structure
 main.Rmd                 Main deliverable: runs the app
 install.R                Installs the required packages (run once)
 R/prepare_data.R         Loads, merges and cleans the data; creates combined_data and available_predictors
-R/analyse_happiness.R    analyse_happiness(): regression of happiness on a predictor, with optional moderator
+R/analyse_happiness.R    analyse_happiness(): regression of happiness on a predictor, with optional moderator, control variables and continent selection
 R/plot_happiness.R       plot_happiness(): plot of the data with the fitted model
 R/report_happiness.R     Readable coefficient table, plain-language summary and country profile of a result
 R/app/happiness_app.R    happiness_app(): the Shiny app
