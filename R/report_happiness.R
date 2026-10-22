@@ -3,7 +3,8 @@
 #' Make a readable coefficient table
 #'
 #' Replaces the internal model names (primary, moderator) with the chosen
-#' variable names and rounds the numbers for display.
+#' variable names, marks the groups of categorical control variables and
+#' rounds the numbers for display.
 #'
 #' @param result The list returned by analyse_happiness().
 #'
@@ -12,7 +13,8 @@ format_coefficients <- function(result) {
   coefficients <- result$all_coefficients
   data.frame(
     Term = vapply(coefficients$term, label_term, character(1),
-                  primary = result$primary, moderator = result$moderator),
+                  primary = result$primary, moderator = result$moderator,
+                  controls = result$control_variables),
     Estimate = sprintf("%.3f", coefficients$estimate),
     `95% CI` = sprintf("[%.3f, %.3f]", coefficients$ci_lower, coefficients$ci_upper),
     p = format_p(coefficients$p_value),
@@ -32,6 +34,13 @@ describe_result <- function(result) {
     "Based on %d countries (%d excluded because of missing data).",
     result$n_countries, result$n_excluded
   )
+  controls <- result$control_variables
+  if (length(controls) > 0) {
+    sentences <- c(sentences, sprintf(
+      "Controlling for %s: the results compare countries that are equal on %s.",
+      paste(controls, collapse = ", "), if (length(controls) == 1) "it" else "these"
+    ))
+  }
 
   if (!result$moderation) {
     model_test <- model_summary$fstatistic
@@ -47,11 +56,28 @@ describe_result <- function(result) {
       ))
     }
     sentences <- c(sentences, sprintf(
-      "%s explains %.0f%% of the differences in happiness between countries (F(%d, %d) = %.2f, p %s).",
-      result$primary, 100 * result$r_squared,
+      "%s explain%s %.0f%% of the differences in happiness between countries (F(%d, %d) = %.2f, p %s).",
+      if (length(controls) > 0) paste(result$primary, "and the control variables together") else result$primary,
+      if (length(controls) > 0) "" else "s",
+      100 * result$r_squared,
       as.integer(model_test[2]), as.integer(model_test[3]), model_test[1],
       format_p(model_p, with_sign = TRUE)
     ))
+    # With controls, the total includes what the controls explain; also
+    # give what the predictor adds on top of them.
+    if (length(controls) > 0) {
+      controls_only <- stats::lm(
+        stats::reformulate(control_terms(result$model_data), response = "happiness"),
+        data = result$model_data
+      )
+      added <- stats::anova(controls_only, result$model)
+      sentences <- c(sentences, sprintf(
+        "%s adds %.0f%% on top of the control variables (F(%d, %d) = %.2f, p %s).",
+        result$primary, 100 * (result$r_squared - summary(controls_only)$r.squared),
+        as.integer(added$Df[2]), as.integer(added$Res.Df[2]), added$F[2],
+        format_p(added$`Pr(>F)`[2], with_sign = TRUE)
+      ))
+    }
   } else {
     test <- result$interaction_test
     significant <- test$p_value < 0.05
@@ -156,9 +182,13 @@ describe_interaction <- function(term, result) {
 }
 
 # The effect of the predictor without the moderator, on the same countries
-# as the moderated model, so the two can be compared.
+# and with the same control variables as the moderated model, so the two
+# can be compared.
 effect_without_moderator <- function(result) {
-  initial <- stats::lm(happiness ~ primary, data = result$model_data)
+  initial <- stats::lm(
+    stats::reformulate(c("primary", control_terms(result$model_data)), response = "happiness"),
+    data = result$model_data
+  )
   if (is.numeric(result$model_data$primary)) {
     interval <- stats::confint(initial)["primary", ]
     return(sprintf(
@@ -242,7 +272,7 @@ country_profile <- function(country, result, data, analysed_data) {
   rows <- as.integer(rownames(result$model_data))
   analysed_countries <- analysed_data[["Country name"]][rows]
   if (!country %in% analysed_countries) {
-    variables <- c("happiness", result$primary, result$moderator)
+    variables <- c("happiness", result$primary, result$moderator, result$control_variables)
     values <- analysed_data[analysed_data[["Country name"]] == country, variables]
     missing <- variables[vapply(values, function(value) is.na(value[[1]]), logical(1))]
     return(sprintf("Not in this analysis: missing data on %s.", paste(missing, collapse = ", ")))
@@ -280,20 +310,31 @@ country_profile <- function(country, result, data, analysed_data) {
 
 # Replace the internal names in a model term, e.g.
 # "primary:moderatorEurope" -> "Social support x continent [Europe]".
-label_term <- function(term, primary, moderator) {
+# Control variables already carry their real names; a group of a
+# categorical control gets brackets too: "Official languageEnglish" ->
+# "Official language [English]".
+label_term <- function(term, primary, moderator, controls = character(0)) {
   if (term == "(Intercept)") return("Intercept")
+  # The longest name first, so "CPI Change (%)" is not read as "CPI".
+  labels <- c(primary = primary, moderator = moderator, stats::setNames(controls, controls))
+  labels <- labels[order(-nchar(names(labels)))]
   parts <- strsplit(term, ":", fixed = TRUE)[[1]]
   parts <- vapply(parts, function(part) {
-    for (internal in c("primary", "moderator")) {
-      variable <- if (internal == "primary") primary else moderator
-      if (part == internal) return(variable)
+    for (internal in names(labels)) {
+      if (part == internal) return(labels[[internal]])
       if (startsWith(part, internal)) {
-        return(paste0(variable, " [", substring(part, nchar(internal) + 1), "]"))
+        return(paste0(labels[[internal]], " [", substring(part, nchar(internal) + 1), "]"))
       }
     }
     part
   }, character(1))
   paste(parts, collapse = " x ")
+}
+
+# The internal names of the control variables in the model data
+# (control1, control2, ...).
+control_terms <- function(model_data) {
+  setdiff(names(model_data), c("happiness", "primary", "moderator"))
 }
 
 # Format p-values the APA way: no leading zero, and "< .001" for small values.
