@@ -333,7 +333,8 @@ analyse_happiness <- function(
     }
     if (is.factor(model_data[[column]])) {
       # Use the chosen continent as the reference group.
-      if (column == "primary" && compare_two_continents) {
+      continent_column <- if (primary_predictor == "continent") "primary" else "moderator"
+      if (column == continent_column && compare_two_continents) {
         if (!all(
           c(reference_continent, comparison_continent) %in%
           levels(model_data[[column]])
