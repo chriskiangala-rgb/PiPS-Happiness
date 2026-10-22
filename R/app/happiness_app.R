@@ -46,12 +46,6 @@ happiness_app <- function(data, predictors,
         choicesOpt = menu(predictor_menu(predictor_groups))$options,
         options = list(`live-search` = TRUE, size = 10)
       ),
-      # A straight line, or a curve (natural spline) for a numeric predictor
-      # whose association bends; not with a moderator.
-      shiny::radioButtons(
-        "shape", "Shape", inline = TRUE,
-        choices = c("Straight line" = "line", "Curve" = "curve")
-      ),
       shinyWidgets::pickerInput(
         "moderator", "Moderator (optional)",
         choices = menu(moderator_choices(predictor_groups, default_predictor))$choices,
@@ -133,6 +127,14 @@ happiness_app <- function(data, predictors,
         "highlight_country", "Highlight a country (optional)",
         choices = c("None" = "", sort(data[["Country name"]])),
         options = list(`live-search` = TRUE, size = 10)
+      ),
+
+      # A straight line, or a curve (natural spline) for a numeric predictor
+      # whose association bends; not with a moderator. Lower in the sidebar:
+      # the line is the default, and the curve warning points here.
+      shiny::radioButtons(
+        "shape", "Shape", inline = TRUE,
+        choices = c("Straight line" = "line", "Curve" = "curve")
       ),
 
       shiny::helpText(
