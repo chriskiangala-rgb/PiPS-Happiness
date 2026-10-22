@@ -3,7 +3,6 @@
 # When you use a new package in the code, add its name to this list.
 
 required_packages <- c(
-  "bsicons",
   "bslib",
   "countrycode",
   "ggplot2",

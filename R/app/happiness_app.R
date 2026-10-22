@@ -118,9 +118,11 @@ happiness_app <- function(data, predictors,
     ),
 
     # Key numbers ----
+    # Side by side on wide screens; on laptop screens the effect gets its
+    # own row, so the tiles stay short and the map below stays in view.
     bslib::layout_columns(
       fill = FALSE,
-      col_widths = c(6, 3, 3),
+      col_widths = bslib::breakpoints(sm = c(12, 6, 6), xl = c(6, 3, 3)),
       # PLANNED (needs standardized, robust results from analyse_happiness()):
       # For a numeric predictor, show the change in happiness points
       # per 1 SD of the predictor with a robust (HC3) 95% CI, so effects of
@@ -131,14 +133,13 @@ happiness_app <- function(data, predictors,
         title = shiny::textOutput("effect_title", inline = TRUE),
         value = shiny::textOutput("effect_value"),
         shiny::textOutput("effect_detail"),
-        showcase = bsicons::bs_icon("graph-up-arrow"),
         theme = tile_theme()
       ),
       # PLANNED (needs standardized, robust results from analyse_happiness()):
       # With control variables, show the variance the predictor adds
       # on top of the controls (R-squared change) instead of the total.
       bslib::value_box(
-        title = "Variance in happiness explained",
+        title = "Variance explained",
         value = shiny::textOutput("r_squared"),
         theme = tile_theme()
       ),
@@ -169,7 +170,12 @@ happiness_app <- function(data, predictors,
             "Happier or unhappier than predicted" = "residual"
           )
         ),
-        plotly::plotlyOutput("map", height = "460px"),
+        # A world map is about twice as wide as it is high; sizing the box
+        # the same way leaves no empty space above and below the map.
+        shiny::div(
+          style = "aspect-ratio: 2 / 1; max-height: 460px;",
+          plotly::plotlyOutput("map", height = "100%")
+        ),
         shiny::uiOutput("map_note")
       ),
       bslib::nav_panel(
@@ -327,8 +333,8 @@ happiness_app <- function(data, predictors,
     output$n_excluded <- shiny::renderText({
       left_out <- nrow(data) - nrow(analysed_data())
       paste0(
-        sprintf("%d excluded because of missing data", usable_result()$n_excluded),
-        if (left_out > 0) sprintf(", %d left out by your selection", left_out)
+        sprintf("%d excluded for missing data", usable_result()$n_excluded),
+        if (left_out > 0) sprintf(", %d on other continents", left_out)
       )
     })
     output$r_squared <- shiny::renderText(
@@ -374,7 +380,6 @@ happiness_app <- function(data, predictors,
     output$country_profile <- shiny::renderUI({
       shiny::req(input$highlight_country != "")
       bslib::card(
-        class = "mb-3",
         bslib::card_header(input$highlight_country),
         shiny::tags$ul(
           class = "mb-0",
@@ -392,7 +397,8 @@ happiness_app <- function(data, predictors,
       map <- map_happiness(result(), analysed_data(), layer = input$map_layer,
                            highlight = input$highlight_country)
       map <- plotly::layout(map, font = list(family = paste(app_fonts, collapse = ", ")))
-      plotly::config(map, displaylogo = FALSE)
+      # Without scrollZoom = FALSE, scrolling the page over the map zooms it.
+      plotly::config(map, displaylogo = FALSE, scrollZoom = FALSE)
     })
     output$map_note <- shiny::renderUI(
       shiny::tags$ul(
@@ -489,8 +495,17 @@ app_theme <- function() {
     "navbar-bg" = app_colours$title_bar,
     base_font = do.call(bslib::font_collection, as.list(app_fonts))
   )
-  # The 'None' moderator is a real choice, so do not grey it out.
+  # Space and a soft purple shadow between the blocks of the page; the
+  # profile card sits inside its output placeholder, so it gets its own rule. The number tiles get less
+  # padding and a smaller number, so they take little height. The 'None'
+  # moderator is a real choice, so it is not greyed out.
   bslib::bs_add_rules(theme, "
+    .bslib-page-main > :not(:empty):not(:last-child),
+    .bslib-page-main > .shiny-html-output > .card { margin-bottom: 1.5rem; }
+    .bslib-page-main .card { box-shadow: 0 2px 10px rgba(61, 39, 102, 0.12); }
+    .bslib-sidebar-layout .bslib-value-box > .card-body { padding: 0; }
+    .bslib-sidebar-layout .bslib-value-box .value-box-area { padding: 0.75rem 1rem; }
+    .bslib-sidebar-layout .bslib-value-box .value-box-value { font-size: 1.75rem; }
     .bslib-sidebar-layout .bootstrap-select > .dropdown-toggle.bs-placeholder,
     .bslib-sidebar-layout .bootstrap-select > .dropdown-toggle.bs-placeholder:hover,
     .bslib-sidebar-layout .bootstrap-select > .dropdown-toggle.bs-placeholder:focus {
