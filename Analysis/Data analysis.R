@@ -307,7 +307,7 @@ analyse_happiness <- function(
   }
   
   for (i in seq_along(control_variables)) {
-    model_data[[control_names[i]]] = data[[control_variables[i]]]
+    model_data[[control_names[i]]] <- data[[control_variables[i]]]
   }
   
   # Use complete, finite values for every selected variable.
