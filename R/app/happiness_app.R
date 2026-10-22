@@ -345,7 +345,10 @@ happiness_app <- function(data, predictors,
       shiny::req(!analysis_failed())
       result()
     })
-
+# Country names in exactly the same order as the model observations.
+model_countries <- shiny::reactive({
+  analysed_data()[["Country name"]][usable_result()$model_rows]
+})
     # Key numbers ----
     output$n_countries <- shiny::renderText(usable_result()$n_countries)
     output$n_excluded <- shiny::renderText({
