@@ -11,9 +11,11 @@
 #' @param countries Optional country names, in the same row order as the data
 #'   that was analysed. When given, each point gets a hover text (shown when
 #'   the plot is made interactive with plotly::ggplotly(tooltip = "text")).
+#' @param highlight Optional country name to mark with a circle and its
+#'   name. Needs countries.
 #'
 #' @return A ggplot object.
-plot_happiness <- function(result, countries = NULL) {
+plot_happiness <- function(result, countries = NULL, highlight = "") {
   model_data <- result$model_data
   predictions <- build_prediction_grid(model_data, result$moderation)
   predictions <- cbind(
@@ -78,6 +80,22 @@ plot_happiness <- function(result, countries = NULL) {
         position = ggplot2::position_dodge(width = 0.5)
       ) +
       ggplot2::scale_x_discrete(labels = function(labels) gsub(" ", "\n", labels))
+  }
+
+  # Mark the highlighted country on top of everything else.
+  if (has_tooltip && highlight %in% country) {
+    marked <- model_data[country == highlight, , drop = FALSE]
+    plot <- plot +
+      muffle_text_aesthetic(ggplot2::geom_point(
+        ggplot2::aes(primary, happiness, text = tooltip),
+        data = marked, inherit.aes = FALSE,
+        shape = 21, size = 4.5, stroke = 1.5, colour = "#1A1A1A", fill = NA
+      )) +
+      ggplot2::geom_text(
+        ggplot2::aes(primary, happiness),
+        data = marked, inherit.aes = FALSE,
+        label = highlight, nudge_y = 0.4, size = 4
+      )
   }
 
   # Keep the happiness scale (0-10) visible: with very small groups the

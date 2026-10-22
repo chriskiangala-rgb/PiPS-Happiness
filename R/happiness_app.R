@@ -76,33 +76,27 @@ happiness_app <- function(data, predictors) {
       #   )
       # ),
 
-      # PLANNED: choose which countries are analysed, to check whether a
-      # result depends on a few countries or on one part of the world.
-      # - Continents: all selected by default. This generalises the two-
-      #   continent comparison above; once it exists, that comparison only
-      #   needs the reference continent.
-      # - Exclude countries: e.g. the influential countries from the Model
-      #   checks tab.
-      # The tiles and the plot caption always show how many countries are
-      # included and which were left out, so cherry-picking stays visible.
-      # The filtering happens before analyse_happiness() is called, see
-      # analysed_data() in the server.
-      # shinyWidgets::pickerInput(
-      #   "continents", "Continents",
-      #   choices = levels(data$continent), selected = levels(data$continent),
-      #   multiple = TRUE,
-      #   options = list(`actions-box` = TRUE)
-      # ),
-      # shinyWidgets::pickerInput(
-      #   "excluded_countries", "Leave out countries (optional)",
-      #   choices = sort(data[["Country name"]]),
-      #   multiple = TRUE,
-      #   options = list(`live-search` = TRUE, size = 10)
-      # ),
+      # Choose which countries are analysed, to check whether a result
+      # depends on a few countries or on one part of the world, e.g. by
+      # leaving out the influential countries from the Model checks tab.
+      # The tiles always show how many countries were left out, so
+      # cherry-picking stays visible.
+      # PLANNED: once the two-continent comparison above exists, it only
+      # needs the reference continent, since this filter picks the continents.
+      shinyWidgets::pickerInput(
+        "continents", "Continents",
+        choices = levels(data$continent), selected = levels(data$continent),
+        multiple = TRUE,
+        options = list(`actions-box` = TRUE)
+      ),
+      shinyWidgets::pickerInput(
+        "excluded_countries", "Leave out countries (optional)",
+        choices = sort(data[["Country name"]]),
+        multiple = TRUE,
+        options = list(`live-search` = TRUE, size = 10)
+      ),
 
       # Highlight one country. Only changes what is shown, not the analysis.
-      # PLANNED: also highlight it in the plot and show its profile (see the
-      # country card below the tiles).
       shinyWidgets::pickerInput(
         "highlight_country", "Highlight a country (optional)",
         choices = c("None" = "", sort(data[["Country name"]])),
@@ -148,12 +142,8 @@ happiness_app <- function(data, predictors) {
       )
     ),
 
-    # PLANNED: profile card of the highlighted country, shown only when one
-    # is chosen: its happiness and rank, its value on the predictor (and
-    # moderator) with rank, and how much happier or unhappier it is than
-    # the model predicts. If it was left out of the analysis, say why
-    # (missing data or excluded by the user).
-    # shiny::uiOutput("country_profile"),
+    # Profile of the highlighted country, only shown when one is chosen.
+    shiny::uiOutput("country_profile"),
 
     # Main views, one tab each ----
     # The map is the first thing a visitor sees: it introduces the data
@@ -290,13 +280,14 @@ happiness_app <- function(data, predictors) {
     #   )
     # })
 
-    # PLANNED: the countries chosen in the sidebar. analyse_happiness(),
-    # the map and the plot then use analysed_data() instead of data.
-    # analysed_data <- shiny::reactive({
-    #   keep <- data$continent %in% input$continents &
-    #     !data[["Country name"]] %in% input$excluded_countries
-    #   data[keep, , drop = FALSE]
-    # })
+    # The countries chosen in the sidebar. Everything that links results
+    # back to countries uses analysed_data(), because the results refer to
+    # its row numbers.
+    analysed_data <- shiny::reactive({
+      keep <- data$continent %in% input$continents &
+        !data[["Country name"]] %in% input$excluded_countries
+      data[keep, , drop = FALSE]
+    })
 
     # Some combinations cannot be estimated (e.g. too few countries);
     # keep analyse_happiness()'s error so it can be shown instead of a crash.
@@ -309,7 +300,7 @@ happiness_app <- function(data, predictors) {
       moderator <- if (is.null(input$moderator)) "" else input$moderator
       tryCatch(
         analyse_happiness(input$primary, moderator,
-                          data = data, predictors = predictors),
+                          data = analysed_data(), predictors = predictors),
         error = function(error) error
       )
     })
@@ -321,9 +312,13 @@ happiness_app <- function(data, predictors) {
 
     # Key numbers ----
     output$n_countries <- shiny::renderText(usable_result()$n_countries)
-    output$n_excluded <- shiny::renderText(
-      sprintf("%d excluded because of missing data", usable_result()$n_excluded)
-    )
+    output$n_excluded <- shiny::renderText({
+      left_out <- nrow(data) - nrow(analysed_data())
+      paste0(
+        sprintf("%d excluded because of missing data", usable_result()$n_excluded),
+        if (left_out > 0) sprintf(", %d left out by your selection", left_out)
+      )
+    })
     output$r_squared <- shiny::renderText(
       sprintf("%.0f%%", 100 * usable_result()$r_squared)
     )
@@ -337,11 +332,11 @@ happiness_app <- function(data, predictors) {
     # PLANNED (in plot_happiness()): hold control variables at their mean or
     # reference group in the prediction lines, draw the bands from the
     # robust standard errors, keep the x-axis in the original units, and
-    # add the curved line when input$show_curve is ticked. Draw the
-    # highlighted country (input$highlight_country) larger and labelled.
+    # add the curved line when input$show_curve is ticked.
     output$plot <- plotly::renderPlotly({
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
-      plot <- plot_happiness(result(), countries = data[["Country name"]])
+      plot <- plot_happiness(result(), countries = analysed_data()[["Country name"]],
+                             highlight = input$highlight_country)
       # A single model line gets the app's purple; groups keep the
       # colour-blind friendly palette so they stay easy to tell apart.
       if (!result()$moderation) {
@@ -363,16 +358,25 @@ happiness_app <- function(data, predictors) {
     )
 
     # Highlighted country ----
-    # PLANNED: see the country card above the tabs for what it shows.
-    # output$country_profile <- shiny::renderUI({
-    #   shiny::req(input$highlight_country != "")
-    #   country_profile(input$highlight_country, usable_result(), data)
-    # })
+    output$country_profile <- shiny::renderUI({
+      shiny::req(input$highlight_country != "")
+      bslib::card(
+        class = "mb-3",
+        bslib::card_header(input$highlight_country),
+        shiny::tags$ul(
+          class = "mb-0",
+          lapply(
+            country_profile(input$highlight_country, usable_result(), data, analysed_data()),
+            shiny::tags$li
+          )
+        )
+      )
+    })
 
     # Map ----
     output$map <- plotly::renderPlotly({
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
-      map <- map_happiness(result(), data, layer = input$map_layer,
+      map <- map_happiness(result(), analysed_data(), layer = input$map_layer,
                            highlight = input$highlight_country)
       map <- plotly::layout(map, font = list(family = paste(app_fonts, collapse = ", ")))
       plotly::config(map, displaylogo = FALSE)
@@ -380,20 +384,20 @@ happiness_app <- function(data, predictors) {
     output$map_note <- shiny::renderUI(
       shiny::tags$ul(
         class = "small text-muted mt-2",
-        lapply(map_note(usable_result(), data, input$map_layer), shiny::tags$li)
+        lapply(map_note(usable_result(), analysed_data(), input$map_layer), shiny::tags$li)
       )
     )
 
     # Model checks ----
     output$residual_plot <- plotly::renderPlotly(
-      interactive_plot(plot_residuals(usable_result(), data[["Country name"]]))
+      interactive_plot(plot_residuals(usable_result(), analysed_data()[["Country name"]]))
     )
     output$qq_plot <- plotly::renderPlotly(
-      interactive_plot(plot_qq(usable_result(), data[["Country name"]]))
+      interactive_plot(plot_qq(usable_result(), analysed_data()[["Country name"]]))
     )
     output$influential_countries <- reactable::renderReactable(
       reactable::reactable(
-        influential_countries(usable_result(), data[["Country name"]]),
+        influential_countries(usable_result(), analysed_data()[["Country name"]]),
         compact = TRUE, pagination = FALSE
       )
     )
@@ -512,8 +516,4 @@ remove_empty_fonts <- function(settings) {
 #   z-scored numeric predictors (with their mean and SD in result$scaling),
 #   robust (HC3) standard errors, the robust interaction test, and the
 #   R-squared the predictor adds on top of the controls.
-#
-# In R/report_happiness.R:
-#   country_profile(country, result, data)
-#                                        Card with the country's values, ranks
-#                                        and residual, or why it was left out.
+
