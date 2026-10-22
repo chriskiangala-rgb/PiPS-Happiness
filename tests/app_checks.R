@@ -153,8 +153,38 @@ stopifnot(
 
 # Check the app itself: change the inputs as a user would and read the outputs
 
+# Check the variable list and the effect per SD
+
+social_sd <- variable_info$sd[variable_info$variable == "Social support"]
+gdp_sd <- variable_info$sd[variable_info$variable == "log2(GDP per person)"]
+social <- analyse_happiness("Social support")
+labelled_menu <- menu_options(predictor_menu(groups), variable_info)
+
+stopifnot(
+  "variable_info should have one row per predictor" =
+    setequal(variable_info$variable, available_predictors),
+  "The SD should be the one across all countries" =
+    isTRUE(all.equal(social_sd, sd(combined_data[["Social support"]], na.rm = TRUE))),
+  "The effect per SD should be the slope times the SD" =
+    grepl(sprintf("%+.2f", social$primary_coefficients$estimate * social_sd),
+          key_effect(social, sd = social_sd)$per_sd, fixed = TRUE),
+  "A logged predictor's SD should be shown as a factor" =
+    grepl(sprintf("%s times more GDP per person", format_number(2^gdp_sd)),
+          key_effect(logged, sd = gdp_sd)$per_sd, fixed = TRUE),
+  "The summary should give the effect per SD" =
+    any(grepl("Per standard deviation", describe_result(logged, gdp_sd))),
+  "No SD, no effect per SD" = is.null(key_effect(logged)$per_sd),
+  "The menu should keep the variable names as values" =
+    setequal(unlist(labelled_menu$choices, use.names = FALSE), available_predictors),
+  "The menu should show the labels" =
+    any(grepl("Labour force participation (%)", names(unlist(labelled_menu$choices)), fixed = TRUE)),
+  "Every menu entry should have a unit" =
+    length(labelled_menu$options$subtext) == length(available_predictors) &&
+    all(labelled_menu$options$subtext != "")
+)
+
 app <- happiness_app(combined_data, available_predictors, predictor_groups = groups,
-                     predictor_notes = predictor_notes)
+                     predictor_notes = predictor_notes, variable_info = variable_info)
 
 # Without a browser, thematic (the app's plot colours) cannot read the page
 # colours and warns; only those warnings are muffled.
@@ -183,7 +213,9 @@ withCallingHandlers(shiny::testServer(app, {
 
   session$setInputs(primary = "log2(GDP per person)")
   stopifnot("The tile should show the example for a logged predictor" =
-              grepl("^E.g. GDP per person", output$effect_baseline))
+              grepl("^E.g. GDP per person", output$effect_baseline),
+            "The tile should show the effect per SD" =
+              grepl("^Per SD \\(1 SD = .* times more GDP per person\\)", output$effect_sd))
 
   session$setInputs(continents = character(0))
   stopifnot("No continents selected should give a message" = analysis_failed())
