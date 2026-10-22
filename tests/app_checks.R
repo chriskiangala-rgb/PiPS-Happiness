@@ -183,6 +183,29 @@ stopifnot(
     all(labelled_menu$options$subtext != "")
 )
 
+# Check that the labels replace the variable names in the text
+
+labelled <- analyse_happiness("Population: Labor force participation (%)", "continent",
+                              control_variables = "Agricultural Land( %)")
+labelled$labels <- stats::setNames(variable_info$label, variable_info$variable)
+labelled_text <- c(
+  unlist(key_effect(labelled)), describe_result(labelled),
+  format_coefficients(labelled)$Term, variance_inflation(labelled)$Variable,
+  plot_happiness(labelled)$labels$x, plot_caption(labelled)
+)
+
+stopifnot(
+  "Labels should replace the variable names" =
+    !any(grepl("Labor force|Agricultural Land\\(", labelled_text)) &&
+    any(grepl("Labour force participation (%)", labelled_text, fixed = TRUE)) &&
+    any(grepl("Agricultural land (%)", labelled_text, fixed = TRUE)),
+  "Without labels the variable names are shown" =
+    identical(display_name(result, "Social support"), "Social support"),
+  "A logged predictor keeps its per 10 times more wording" =
+    grepl("per 10 times more GDP per person",
+          key_effect(modifyList(logged, list(labels = labelled$labels)))$title, fixed = TRUE)
+)
+
 app <- happiness_app(combined_data, available_predictors, predictor_groups = groups,
                      predictor_notes = predictor_notes, variable_info = variable_info)
 
