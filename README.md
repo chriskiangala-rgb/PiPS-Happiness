@@ -33,22 +33,23 @@ With a moderator, the Plot tab shows a separate line per group. Here the effect 
 ## 5. Repository Structure
 
 ```
-main.Rmd                 Main deliverable: run its app chunk to start the app
-install.R                Installs the required packages (run once)
-R/prepare_data.R         Loads, merges and cleans the data; creates combined_data and available_predictors
-R/analyse_happiness.R    analyse_happiness(): regression of happiness on a predictor, with optional moderator, control variables and continent selection
-R/plot_happiness.R       plot_happiness(): plot of the data with the fitted model
-R/report_happiness.R     Readable coefficient table, plain-language summary and country profile of a result
-R/app/happiness_app.R    happiness_app(): the Shiny app
-R/app/map_happiness.R    World map of happiness, the predictor or the residuals, with Moran's I
-R/app/check_model.R      Model checks: residual plots, influential countries and VIF
+main.Rmd                        Main deliverable: run its app chunk to start the app
+install.R                       Installs the required packages (run once)
+R/prepare_data.R                Loads, merges and cleans the data; creates combined_data and available_predictors
+R/analysis/analyse_happiness.R  analyse_happiness(): regression of happiness on a predictor, with optional moderator, control variables, continent selection and a curve
+R/analysis/plot_happiness.R     plot_happiness(): plot of the data with the fitted model
+R/analysis/report_happiness.R   Readable coefficient table, plain-language summary, curve check and country profile of a result
+R/analysis/check_assumptions.R  check_assumptions(): the assumption checks behind the Methods section, and Moran's I
+R/app/happiness_app.R           happiness_app(): the Shiny app
+R/app/map_happiness.R           World map of happiness, the predictor or the residuals, with Moran's I
+R/app/check_model.R             Model checks: residual plots, influential countries and VIF
 R/app/predictor_groups.R Groups the predictors by theme for the app's menus
-examples/examples.R      Example analyses with explanation: source("examples/examples.R")
-tests/error_checks.R     Checks that the data and analysis work: source("tests/error_checks.R")
-tests/app_checks.R       Checks that the app and its outputs work: source("tests/app_checks.R")
-data/WHR2023.csv         World Happiness Report 2023
+examples/examples.R             Example analyses with explanation: source("examples/examples.R")
+tests/error_checks.R            Checks that the data and analysis work: source("tests/error_checks.R")
+tests/app_checks.R              Checks that the app and its outputs work: source("tests/app_checks.R")
+data/WHR2023.csv                World Happiness Report 2023
 data/world-data-2023.csv Global country information 2023
-images/                  Screenshots of the app for this README
+images/                         Screenshots of the app for this README
 ```
 
 Run everything with the repo root as working directory.

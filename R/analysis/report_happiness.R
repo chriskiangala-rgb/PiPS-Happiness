@@ -40,6 +40,15 @@ describe_result <- function(result, sd = NULL) {
     "Based on %d countries (%d excluded because of missing data).",
     result$n_countries, result$n_excluded
   )
+  for (variable in names(result$excluded_groups)) {
+    groups <- result$excluded_groups[[variable]]
+    sentences <- c(sentences, sprintf(
+      "Left out: %s (%s of %s), because %s fewer than %d countries with data.",
+      paste(groups, collapse = ", "), if (length(groups) == 1) "a group" else "groups",
+      tolower(display_name(result, variable)),
+      if (length(groups) == 1) "it has" else "they have", result$min_group_size
+    ))
+  }
   controls <- result$control_variables
   if (length(controls) > 0) {
     sentences <- c(sentences, sprintf(
@@ -49,10 +58,16 @@ describe_result <- function(result, sd = NULL) {
   }
 
   if (!result$moderation) {
-    model_test <- model_summary$fstatistic
-    model_p <- pf(model_test[1], model_test[2], model_test[3], lower.tail = FALSE)
+    # Test all variables together against a model without them, with the
+    # same covariance (HC3) as the coefficients.
+    intercept_only <- stats::lm(happiness ~ 1, data = result$model_data)
+    overall <- lmtest::waldtest(intercept_only, result$model, vcov = result$covariance, test = "F")
+    model_test <- c(overall$F[2], overall$Df[2], overall$Res.Df[2])
+    model_p <- overall$`Pr(>F)`[2]
 
-    if (is.numeric(result$model_data$primary)) {
+    if (identical(result$shape, "curve")) {
+      sentences <- c(sentences, describe_curve(result))
+    } else if (is.numeric(result$model_data$primary)) {
       slope <- result$primary_coefficients
       step <- ten_times(result$primary)
       scale <- log_scale(result$primary)
@@ -87,7 +102,7 @@ describe_result <- function(result, sd = NULL) {
         stats::reformulate(names(result$control_mapping), response = "happiness"),
         data = result$model_data
       )
-      added <- stats::anova(controls_only, result$model)
+      added <- lmtest::waldtest(controls_only, result$model, vcov = result$covariance, test = "F")
       sentences <- c(sentences, sprintf(
         "%s adds %.0f%% on top of the control variables (F(%d, %d) = %.2f, p %s).",
         primary, 100 * (result$r_squared - summary(controls_only)$r.squared),
@@ -116,6 +131,10 @@ describe_result <- function(result, sd = NULL) {
 
   curve <- curvature_test(result)
   if (!is.null(curve) && curve$misleading) sentences <- c(sentences, describe_curvature(curve, result))
+
+  if (isTRUE(result$robust)) {
+    sentences <- c(sentences, "Standard errors, confidence intervals and p-values are robust (HC3): they do not assume that the spread around the line is the same for every country.")
+  }
 
   c(sentences, "These are country-level associations: they do not show causal effects or effects on individual people.")
 }
@@ -172,6 +191,26 @@ key_effect <- function(result, countries = NULL, sd = NULL) {
     ))
   }
 
+  if (identical(result$shape, "curve")) {
+    difference <- curve_difference(result)
+    return(list(
+      title = paste("Change in happiness from a low to a high",
+                    primary_label(result), "(curve)"),
+      value = sprintf("%+.2f", difference$estimate),
+      detail = sprintf("95%% CI [%.2f, %.2f], p %s",
+                       difference$ci_lower, difference$ci_upper,
+                       format_p(difference$p_value, with_sign = TRUE)),
+      example = if (!is.null(countries)) curve_example(result, difference, countries),
+      # Low to high can be near 0 for a curve that goes up and down; this
+      # line shows that the curve can still matter.
+      baseline = sprintf(
+        "The curve explains %.0f%%, a straight line %.0f%% (curve vs line: p %s)",
+        100 * result$r_squared, 100 * result$line_r_squared,
+        format_p(result$curve_test$p_value, with_sign = TRUE)
+      )
+    ))
+  }
+
   if (is.numeric(result$model_data$primary)) {
     slope <- result$primary_coefficients
     step <- ten_times(result$primary)
@@ -192,7 +231,7 @@ key_effect <- function(result, countries = NULL, sd = NULL) {
     ))
   }
 
-  largest <- largest_difference(result$model, levels(result$model_data$primary))
+  largest <- largest_difference(result$model, levels(result$model_data$primary), result$covariance)
   list(
     title = "Largest difference in happiness between groups",
     value = sprintf("%+.2f", largest$estimate),
@@ -236,9 +275,10 @@ effect_without_moderator <- function(result) {
     stats::reformulate(c("primary", names(result$control_mapping)), response = "happiness"),
     data = result$model_data
   )
+  covariance <- model_covariance(initial, isTRUE(result$robust))
   if (is.numeric(result$model_data$primary)) {
     step <- ten_times(result$primary)
-    interval <- stats::confint(initial)["primary", ] * step
+    interval <- lmtest::coefci(initial, vcov. = covariance)["primary", ] * step
     return(sprintf(
       "Without the moderator: %+.2f %s, 95%% CI [%.2f, %.2f]",
       stats::coef(initial)[["primary"]] * step,
@@ -246,14 +286,14 @@ effect_without_moderator <- function(result) {
       interval[1], interval[2]
     ))
   }
-  largest <- largest_difference(initial, levels(result$model_data$primary))
+  largest <- largest_difference(initial, levels(result$model_data$primary), covariance)
   sprintf("Without the moderator: largest group difference %+.2f (%s vs %s)",
           largest$estimate, largest$higher, largest$lower)
 }
 
 # The largest pairwise group difference, reported as higher vs lower group.
-largest_difference <- function(model, groups) {
-  differences <- group_differences(model, groups)
+largest_difference <- function(model, groups, covariance = stats::vcov(model)) {
+  differences <- group_differences(model, groups, covariance)
   largest <- differences[which.max(abs(differences$estimate)), ]
   if (largest$estimate < 0) {
     largest[c("higher", "lower")] <- largest[c("lower", "higher")]
@@ -274,11 +314,12 @@ largest_difference <- function(model, groups) {
 #'
 #' @param model The fitted lm model, with the predictor named "primary".
 #' @param groups The groups of the predictor; the first is the reference.
+#' @param covariance The covariance of the coefficients; result$covariance
+#'   (HC3) so the differences match the coefficient table.
 #'
 #' @return A data frame with one row per pair of groups.
-group_differences <- function(model, groups) {
+group_differences <- function(model, groups, covariance = stats::vcov(model)) {
   coefficients <- stats::coef(model)
-  covariance <- stats::vcov(model)
   pairs <- utils::combn(groups, 2)
   n_pairs <- ncol(pairs)
   critical_t <- stats::qt(1 - 0.05 / (2 * n_pairs), stats::df.residual(model))
@@ -321,6 +362,14 @@ country_profile <- function(country, result, data, analysed_data) {
   }
   rows <- result$model_rows
   analysed_countries <- analysed_data[["Country name"]][rows]
+  # Left out because its group (e.g. Oceania) has too few countries.
+  for (variable in names(result$excluded_groups)) {
+    group <- as.character(analysed_data[analysed_data[["Country name"]] == country, variable][[1]])
+    if (group %in% result$excluded_groups[[variable]]) {
+      return(sprintf("Not in this analysis: %s has fewer than %d countries with data.",
+                     group, result$min_group_size))
+    }
+  }
   if (!country %in% analysed_countries) {
     variables <- c("happiness", result$primary, result$moderator, result$control_variables)
     values <- analysed_data[analysed_data[["Country name"]] == country, variables]
@@ -355,8 +404,17 @@ country_profile <- function(country, result, data, analysed_data) {
   })
   if (result$moderation) {
     moderator <- analysed_data[[result$moderator]][rows][position]
-    if (is.numeric(moderator)) moderator <- format(signif(moderator, 3), big.mark = ",")
-    sentences <- c(sentences, sprintf("%s: %s.", display_name(result, result$moderator), moderator))
+    # A logged moderator in its original units, like the predictor above:
+    # Population 17,300,000 instead of its log2 value 24.1.
+    scale <- log_scale(result$moderator)
+    if (is.numeric(moderator)) {
+      moderator <- format_number(original_units(moderator, result$moderator), 3)
+    }
+    sentences <- c(sentences, sprintf(
+      "%s: %s.",
+      if (is.null(scale)) display_name(result, result$moderator) else scale$name,
+      moderator
+    ))
   }
   c(sentences, sprintf(
     "%.2f points %s than the model predicts.",
@@ -369,7 +427,7 @@ country_profile <- function(country, result, data, analysed_data) {
 #'
 #' Adds the squared and cubed predictor (standardised first, so large
 #' variables stay computable) to the model and tests whether that improves
-#' the fit. The same rule as the assumption checks:
+#' the fit, with a Wald test (HC3 when the result is robust). The same rule as the assumption checks:
 #' the line misleads when the curve fits significantly better and either
 #' the line explains less than 80% of what the curve explains, or the curve
 #' goes the other way than the line over more than 10% of the predictor's
@@ -388,6 +446,8 @@ country_profile <- function(country, result, data, analysed_data) {
 curvature_test <- function(result) {
   model_data <- result$model_data
   primary <- model_data$primary
+  # A curve is already fitted; curve_test compares it with the line.
+  if (identical(result$shape, "curve")) return(NULL)
   if (!is.numeric(primary) || length(unique(primary)) < 5L) return(NULL)
   centre <- mean(primary)
   spread <- stats::sd(primary)
@@ -398,7 +458,11 @@ curvature_test <- function(result) {
     data = model_data
   )
   if (anyNA(stats::coef(curved)) || stats::df.residual(curved) < 1L) return(NULL)
-  test <- stats::anova(result$model, curved)
+  # Tested with the same kind of covariance as the model (HC3 when robust).
+  curve_covariance <- tryCatch(model_covariance(curved, isTRUE(result$robust)),
+                               error = function(error) NULL)
+  if (is.null(curve_covariance)) return(NULL)
+  test <- lmtest::waldtest(result$model, curved, vcov = curve_covariance, test = "F")
 
   # Direction of the curve along the predictor, from its own terms.
   grid <- seq(stats::quantile(primary, 0.05), stats::quantile(primary, 0.95), length.out = 50)
@@ -431,6 +495,85 @@ describe_curvature <- function(curve, result) {
     display_name(result, result$primary), if (curve$against > 0.1) " and goes up and down" else "",
     100 * curve$r_squared_curve, 100 * curve$r_squared_line,
     curve$df_added, curve$df_residual, curve$f_value, format_p(curve$p_value, with_sign = TRUE)
+  )
+}
+
+# Curves ----
+
+# The predictor's name for a sentence: its label, or the original name of a
+# logged predictor ("GDP per person"), whose values are shown unlogged.
+primary_label <- function(result) {
+  scale <- log_scale(result$primary)
+  if (is.null(scale)) display_name(result, result$primary) else scale$name
+}
+
+#' Change in happiness along a curve, from a low to a high value
+#'
+#' A curve has no single slope, so it is summarised by the predicted
+#' difference between the 25th and the 75th percentile of the predictor,
+#' with the control variables held at their mean or reference group. The
+#' CI and p-value use the result's covariance (HC3 when robust). For a
+#' straight line this is the slope times the distance between the two. For
+#' a curve that goes up and down it can be near 0, so the tile also says
+#' how much more the curve explains than a straight line.
+#'
+#' @param result The list returned by analyse_happiness().
+#'
+#' @return A list with the low and high value (model scale), the estimate,
+#'   its CI and p-value.
+curve_difference <- function(result) {
+  model <- result$model
+  values <- unname(stats::quantile(result$model_data$primary, c(0.25, 0.75)))
+  grid <- hold_controls(data.frame(primary = values), result$model_data,
+                        names(result$control_mapping))
+  predictors <- stats::delete.response(stats::terms(model))
+  design <- stats::model.matrix(predictors, stats::model.frame(predictors, grid, xlev = model$xlevels),
+                                contrasts.arg = model$contrasts)
+  contrast <- design[2, ] - design[1, ]
+  covariance <- if (is.null(result$covariance)) stats::vcov(model) else result$covariance
+  estimate <- sum(contrast * stats::coef(model))
+  std_error <- sqrt(drop(t(contrast) %*% covariance %*% contrast))
+  critical_t <- stats::qt(0.975, stats::df.residual(model))
+  list(
+    low = values[1], high = values[2], estimate = estimate,
+    ci_lower = estimate - critical_t * std_error,
+    ci_upper = estimate + critical_t * std_error,
+    p_value = 2 * stats::pt(-abs(estimate / std_error), stats::df.residual(model))
+  )
+}
+
+# What low and high mean, with the countries nearest to them, e.g. "Low =
+# 25th percentile: 58 (e.g. Chile); high = 75th: 68 (e.g. Kenya)".
+curve_example <- function(result, difference, countries) {
+  values <- result$model_data$primary
+  nearest <- function(value) countries[which.min(abs(values - value))]
+  sprintf(
+    "Low = 25th percentile: %s (e.g. %s); high = 75th: %s (e.g. %s)",
+    format_number(original_units(difference$low, result$primary), 3), nearest(difference$low),
+    format_number(original_units(difference$high, result$primary), 3), nearest(difference$high)
+  )
+}
+
+# The sentences about a curve: the change from low to high, and how much
+# better the curve fits than the straight line.
+describe_curve <- function(result) {
+  difference <- curve_difference(result)
+  test <- result$curve_test
+  c(
+    sprintf(
+      "Along the curve, countries with a high %s (75th percentile, %s) have a %.2f points %s happiness score than countries with a low one (25th percentile, %s) (95%% CI [%.2f, %.2f], p %s).",
+      primary_label(result), format_number(original_units(difference$high, result$primary), 3),
+      abs(difference$estimate), if (difference$estimate >= 0) "higher" else "lower",
+      format_number(original_units(difference$low, result$primary), 3),
+      difference$ci_lower, difference$ci_upper, format_p(difference$p_value, with_sign = TRUE)
+    ),
+    sprintf(
+      "The curve explains %.0f%% of the differences in happiness, a straight line %.0f%%; the curve %s (F(%d, %d) = %.2f, p %s).",
+      100 * result$r_squared, 100 * result$line_r_squared,
+      if (test$p_value < 0.05) "fits significantly better" else "does not fit significantly better",
+      as.integer(test$df_added), as.integer(stats::df.residual(result$model)),
+      test$f_value, format_p(test$p_value, with_sign = TRUE)
+    )
   )
 }
 
@@ -581,6 +724,11 @@ label_term <- function(term, primary, moderator, controls = character(0),
   labels <- c(moderator = moderator, primary = primary)
   parts <- strsplit(term, ":", fixed = TRUE)[[1]]
   parts <- vapply(parts, function(part) {
+    # The spline columns of a curve: "ns(primary, df = 3)2".
+    if (startsWith(part, "ns(primary")) {
+      piece <- sub("^ns\\(primary, df = [0-9]+\\)", "", part)
+      return(paste0(primary, if (piece == "") " (curve)" else paste0(" (curve, part ", piece, ")")))
+    }
     for (internal in names(labels)) {
       if (part == internal) return(labels[[internal]])
       if (startsWith(part, internal)) {

@@ -129,6 +129,14 @@ happiness_app <- function(data, predictors,
         options = list(`live-search` = TRUE, size = 10)
       ),
 
+      # A straight line, or a curve (natural spline) for a numeric predictor
+      # whose association bends; not with a moderator. Lower in the sidebar:
+      # the line is the default, and the curve warning points here.
+      shiny::radioButtons(
+        "shape", "Shape", inline = TRUE,
+        choices = c("Straight line" = "line", "Curve" = "curve")
+      ),
+
       shiny::helpText(
         "Explore, don't conclude: with this many possible combinations some",
         "results will be significant by chance. All results compare countries,",
@@ -364,7 +372,8 @@ happiness_app <- function(data, predictors,
           data = analysed_data(), predictors = predictors,
           control_variables = controls,
           selected_continents = if (compares_continents) input$continents,
-          reference_continent = reference
+          reference_continent = reference,
+          shape = if (is.null(input$shape)) "line" else input$shape
         ),
         error = function(error) error
       )
@@ -388,8 +397,13 @@ happiness_app <- function(data, predictors,
     output$n_countries <- shiny::renderText(usable_result()$n_countries)
     output$n_excluded <- shiny::renderText({
       left_out <- nrow(data) - nrow(analysed_data())
+      small <- usable_result()$n_small_groups
       paste0(
         sprintf("%d excluded for missing data", usable_result()$n_excluded),
+        if (isTRUE(small > 0)) {
+          sprintf(", %d in groups of fewer than %d (%s)", small, usable_result()$min_group_size,
+                  paste(unlist(usable_result()$excluded_groups), collapse = ", "))
+        },
         if (left_out > 0) sprintf(", %d on other continents", left_out)
       )
     })
@@ -406,8 +420,9 @@ happiness_app <- function(data, predictors,
     output$effect_title <- shiny::renderText(effect()$title)
     output$effect_value <- shiny::renderText(effect()$value)
     output$effect_detail <- shiny::renderText(effect()$detail)
-    # The effect without the moderator, or the example of a logged predictor.
-    output$effect_baseline <- shiny::renderText(c(effect()$baseline, effect()$example))
+    # The effect without the moderator, the curve against the line, and the
+    # example of a logged predictor or a curve.
+    output$effect_baseline <- shiny::renderText(paste(c(effect()$baseline, effect()$example), collapse = ". "))
 
     # Notes on the chosen variables ----
     output$variable_notes <- shiny::renderUI({
@@ -445,7 +460,8 @@ happiness_app <- function(data, predictors,
         shiny::p(class = "small text-muted mt-2 mb-0", plot_caption(usable_result(), " ")),
         if (!is.null(curve) && curve$misleading) {
           shiny::p(class = "small alert alert-warning mt-2 mb-0 py-2 px-3",
-                   describe_curvature(curve, usable_result()))
+                   describe_curvature(curve, usable_result()),
+                   "Choose Shape: Curve in the sidebar to fit a curve.")
         }
       )
     })
