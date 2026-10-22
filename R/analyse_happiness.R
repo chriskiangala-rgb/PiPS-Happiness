@@ -110,7 +110,11 @@ analyse_happiness <- function(
   for (i in seq_along(control_variables)) {
     model_data[[control_names[i]]] <- data[[control_variables[i]]]
   }
-  
+
+  # Real variable name of each internal name, for messages and labels.
+  real_names <- c(primary = primary_predictor, setNames(control_variables, control_names))
+  if (moderator != "") real_names["moderator"] <- moderator
+
   # Use complete, finite values for every selected variable.
   usable <- rep(TRUE, nrow(model_data))
   for (column in names(model_data)) {
@@ -135,7 +139,7 @@ analyse_happiness <- function(
       model_data[[column]] <- droplevels(factor(model_data[[column]]))
     }
     if (length(unique(model_data[[column]])) < 2L) {
-      stop(paste("No variation in", column, "among the available countries."))
+      stop(paste("No variation in", real_names[[column]], "among the available countries."))
     }
     if (is.factor(model_data[[column]])) {
       # Set the reference on the column that holds continent: the
@@ -205,21 +209,23 @@ analyse_happiness <- function(
     row.names = NULL
   )
   
+  # Separate primary and interaction coefficients ----
+
+  # Decide this on the internal names, before the real control names are put
+  # back: a real name can contain a colon or start with "primary".
+  is_interaction <- grepl(":", coefficient_table$term, fixed = TRUE)
+  is_primary <- startsWith(coefficient_table$term, "primary") & !is_interaction
+
   # Show the real names of the control variables instead of control1, control2, ...
+  # (?![0-9]) stops control1 from also matching control10, control11, ...
   for (i in seq_along(control_names)) {
     coefficient_table$term <- sub(
-      paste0("^", control_names[i]), control_variables[i], coefficient_table$term
+      paste0("^", control_names[i], "(?![0-9])"), control_variables[i],
+      coefficient_table$term, perl = TRUE
     )
   }
-  
-  # Separate primary and interaction coefficients ----
-  
-  # Separate main-effect coefficients from interaction coefficients.
-  is_interaction <- grepl(":", coefficient_table$term, fixed = TRUE)
-  primary_coefficients <- coefficient_table[
-    startsWith(coefficient_table$term, "primary") & !is_interaction,
-    , drop = FALSE
-  ]
+
+  primary_coefficients <- coefficient_table[is_primary, , drop = FALSE]
   interaction_coefficients <- coefficient_table[
     is_interaction, , drop = FALSE
   ]
