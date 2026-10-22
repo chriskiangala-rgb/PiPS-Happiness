@@ -146,7 +146,7 @@ key_effect <- function(result) {
 #' @return A character vector with one sentence per element.
 country_profile <- function(country, result, data, analysed_data) {
   if (!country %in% analysed_data[["Country name"]]) {
-    return("Left out by your selection of continents or countries.")
+    return("Left out by your selection of continents.")
   }
   rows <- as.integer(rownames(result$model_data))
   analysed_countries <- analysed_data[["Country name"]][rows]
