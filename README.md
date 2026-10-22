@@ -102,7 +102,7 @@ See [examples/examples.R](examples/examples.R) for the example analyses and expl
 ## 6. Repository Structure
 
 ```
-main.Rmd                        Main deliverable: run its app chunk to start the app
+main.Rmd                        Main deliverable: the analysis with its plot, the assumption checks, and the app chunk
 install.R                       Installs the required packages (run once)
 LICENSE                         MIT license for this project
 references.bib                  References for main.Rmd (data, methods, R and packages)
