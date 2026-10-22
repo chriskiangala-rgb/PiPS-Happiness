@@ -100,14 +100,14 @@ happiness_app <- function(data, predictors) {
       #   options = list(`live-search` = TRUE, size = 10)
       # ),
 
-      # PLANNED: highlight one country in the map and the plot, and show its
-      # profile (see the country card below the tiles). Only changes what
-      # is shown, not the analysis.
-      # shinyWidgets::pickerInput(
-      #   "highlight_country", "Highlight a country (optional)",
-      #   choices = c("None" = "", sort(data[["Country name"]])),
-      #   options = list(`live-search` = TRUE, size = 10)
-      # ),
+      # Highlight one country. Only changes what is shown, not the analysis.
+      # PLANNED: also highlight it in the plot and show its profile (see the
+      # country card below the tiles).
+      shinyWidgets::pickerInput(
+        "highlight_country", "Highlight a country (optional)",
+        choices = c("None" = "", sort(data[["Country name"]])),
+        options = list(`live-search` = TRUE, size = 10)
+      ),
 
       shiny::helpText(
         "Explore, don't conclude: with this many possible combinations some",
@@ -157,39 +157,22 @@ happiness_app <- function(data, predictors) {
 
     # Main views, one tab each ----
     # The map is the first thing a visitor sees: it introduces the data
-    # before the analysis. Until it is built, the app opens on the plot.
-    # PLANNED: remove selected = "Plot" once the map works.
+    # before the analysis.
     bslib::navset_card_tab(
       id = "main_view",
-      selected = "Plot",
       full_screen = TRUE,
       bslib::nav_panel(
         "Map",
-        # PLANNED: a world map coloured by the chosen layer.
-        # - Happiness and the predictor: a sequential colour scale.
-        # - Residuals: a diverging scale (blue - white - red, 0 in the middle)
-        #   showing which countries are happier or unhappier than the model
-        #   predicts. Below it, Moran's I: are neighbouring countries similar?
-        # - Countries without data in grey, with "No data" in the legend.
-        # - Hover: country, value and happiness, as in the plot.
-        # - The highlighted country gets a thick outline.
-        # - A note that large countries dominate the map visually, while each
-        #   country counts once in the analysis.
-        # Needs ISO3 country codes stored in combined_data (prepare_data.R).
-        # shiny::radioButtons(
-        #   "map_layer", NULL, inline = TRUE,
-        #   choices = c(
-        #     "Happiness" = "happiness",
-        #     "Chosen predictor" = "predictor",
-        #     "Happier or unhappier than predicted" = "residual"
-        #   )
-        # ),
-        # plotly::plotlyOutput("map", height = "460px"),
-        # shiny::uiOutput("map_note"),
-        coming_soon(
-          "A world map coloured by happiness, by the chosen predictor, or by",
-          "how much happier or unhappier each country is than the model predicts."
-        )
+        shiny::radioButtons(
+          "map_layer", NULL, inline = TRUE,
+          choices = c(
+            "Happiness" = "happiness",
+            "Chosen predictor" = "predictor",
+            "Happier or unhappier than predicted" = "residual"
+          )
+        ),
+        plotly::plotlyOutput("map", height = "460px"),
+        shiny::uiOutput("map_note")
       ),
       bslib::nav_panel(
         "Plot",
@@ -369,12 +352,19 @@ happiness_app <- function(data, predictors) {
     # })
 
     # Map ----
-    # PLANNED: see the Map tab above for what it shows.
-    # output$map <- plotly::renderPlotly(
-    #   map_happiness(usable_result(), data, layer = input$map_layer,
-    #                 highlight = input$highlight_country)
-    # )
-    # output$map_note <- shiny::renderUI(map_note(usable_result(), data))
+    output$map <- plotly::renderPlotly({
+      if (analysis_failed()) shiny::validate(conditionMessage(result()))
+      map <- map_happiness(result(), data, layer = input$map_layer,
+                           highlight = input$highlight_country)
+      map <- plotly::layout(map, font = list(family = paste(app_fonts, collapse = ", ")))
+      plotly::config(map, displaylogo = FALSE)
+    })
+    output$map_note <- shiny::renderUI(
+      shiny::tags$ul(
+        class = "small text-muted mt-2",
+        lapply(map_note(usable_result(), data, input$map_layer), shiny::tags$li)
+      )
+    )
 
     # Model checks ----
     # PLANNED: see the Model checks tab above for what they show.
@@ -497,13 +487,7 @@ remove_empty_fonts <- function(settings) {
 #
 # In analyse_happiness.R (results stored in the list it returns):
 #   z-scored numeric predictors, robust (HC3) standard errors, the robust
-#   interaction test, residuals per country, Cook's distance, VIF, and
-#   Moran's I of the residuals (neighbours from latitude and longitude).
-#
-# In R/map_happiness.R:
-#   map_happiness(result, data, layer, highlight)
-#                                        plotly choropleth by ISO3 code.
-#   map_note(result, data)               Caveat text and Moran's I result.
+#   interaction test, residuals per country, Cook's distance and VIF.
 #
 # In R/check_model.R:
 #   plot_residuals(result, countries)    Residuals against fitted values.
