@@ -100,7 +100,7 @@ knitr::kable(format_coefficients(social_support_result))
 
 The relationship between social support and happiness differs between
 continents after controlling for Logged GDP per capita. The overall robust
-Wald test gives $$F(4, 124) = 5.97$$, $$p < .001$$.
+Wald test gives *F*(4, 124) = 5.97, *p* < .001.
 
 The estimated slopes are approximately 6.3 in Europe and 6.1 in Asia,
 indicating stronger positive associations in these continents. The estimated
