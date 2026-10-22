@@ -300,7 +300,7 @@ analyse_happiness <- function(
     primary = data[[primary_predictor]]
   )
   if (moderator != "") model_data$moderator <- data[[moderator]]
-  control_names = if (length(control_variables) > 0) {
+  control_names <- if (length(control_variables) > 0) {
     paste0("control", seq_along(control_variables))
   } else {
     character(0)
