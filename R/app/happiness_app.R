@@ -12,14 +12,24 @@
 #' @param predictor_groups Optional named list that splits predictors into
 #'   groups for the menus, e.g. by data source. Every predictor must be in
 #'   exactly one group. By default: numeric variables and categories.
+#' @param predictor_notes Optional named character vector with a caution per
+#'   variable (predictor_notes from prepare_data.R). The note is shown when
+#'   that variable is chosen as predictor, moderator or control.
+#' @param variable_info Optional data frame with one row per predictor
+#'   (variable_info from prepare_data.R): variable, label, unit, source,
+#'   transformation, n and sd. Gives readable menus with units, the variable
+#'   table under "About the data" and the effect per SD.
 #'
 #' @return A Shiny app object; start it with shiny::runApp().
 happiness_app <- function(data, predictors,
-                          predictor_groups = group_by_type(data, predictors)) {
+                          predictor_groups = group_by_type(data, predictors),
+                          predictor_notes = NULL, variable_info = NULL) {
   if (!setequal(unlist(predictor_groups), predictors) ||
       anyDuplicated(unlist(predictor_groups))) {
     stop("predictor_groups must contain every predictor exactly once.")
   }
+  # Menus with readable labels and the unit under each variable.
+  menu <- function(choices) menu_options(choices, variable_info)
   default_predictor <- if ("Social support" %in% predictors) "Social support" else predictors[1]
 
   ui <- bslib::page_sidebar(
@@ -32,12 +42,14 @@ happiness_app <- function(data, predictors,
 
       shinyWidgets::pickerInput(
         "primary", "Predictor",
-        choices = predictor_menu(predictor_groups), selected = default_predictor,
+        choices = menu(predictor_menu(predictor_groups))$choices, selected = default_predictor,
+        choicesOpt = menu(predictor_menu(predictor_groups))$options,
         options = list(`live-search` = TRUE, size = 10)
       ),
       shinyWidgets::pickerInput(
         "moderator", "Moderator (optional)",
-        choices = moderator_choices(predictor_groups, default_predictor),
+        choices = menu(moderator_choices(predictor_groups, default_predictor))$choices,
+        choicesOpt = menu(moderator_choices(predictor_groups, default_predictor))$options,
         options = list(`live-search` = TRUE, size = 10)
       ),
       shiny::helpText(
@@ -48,7 +60,8 @@ happiness_app <- function(data, predictors,
       # Control variables, at most 3, never the predictor or the moderator.
       shinyWidgets::pickerInput(
         "controls", "Control variables (optional, max. 3)",
-        choices = control_choices(predictor_groups, default_predictor),
+        choices = menu(control_choices(predictor_groups, default_predictor))$choices,
+        choicesOpt = menu(control_choices(predictor_groups, default_predictor))$options,
         multiple = TRUE,
         options = list(
           `live-search` = TRUE, `max-options` = 3, size = 10,
@@ -59,6 +72,8 @@ happiness_app <- function(data, predictors,
         "Control variables are held constant: the effect shown is the",
         "association that remains between countries that are equal on them."
       ),
+      # Cautions about the chosen variables, e.g. much missing data.
+      shiny::uiOutput("variable_notes"),
 
       # Choose which continents are analysed, to check whether a result
       # holds in one part of the world. Single countries cannot be left out:
@@ -132,6 +147,7 @@ happiness_app <- function(data, predictors,
         title = shiny::textOutput("effect_title", inline = TRUE),
         value = shiny::textOutput("effect_value"),
         shiny::textOutput("effect_detail"),
+        shiny::textOutput("effect_sd"),
         shiny::textOutput("effect_baseline"),
         theme = tile_theme()
       ),
@@ -239,7 +255,18 @@ happiness_app <- function(data, predictors,
           shiny::tags$li(
             "One row per country: every result describes countries, not individual people."
           )
-        )
+        ),
+        if (!is.null(variable_info)) {
+          shiny::tagList(
+            shiny::tags$h6("The variables"),
+            shiny::helpText(
+              "Countries: how many have data on the variable. SD: the standard deviation",
+              "across those countries (on the log scale for logged variables), the step",
+              "used for the effect per SD."
+            ),
+            reactable::reactableOutput("variable_table")
+          )
+        }
       )
     ),
 
@@ -261,9 +288,10 @@ happiness_app <- function(data, predictors,
     # The moderator cannot be the same variable as the predictor.
     shiny::observeEvent(input$primary, {
       current <- shiny::isolate(input$moderator)
+      choices <- menu(moderator_choices(predictor_groups, input$primary))
       shinyWidgets::updatePickerInput(
         session, "moderator",
-        choices = moderator_choices(predictor_groups, input$primary),
+        choices = choices$choices, choicesOpt = choices$options,
         selected = if (!identical(current, input$primary)) current else ""
       )
     })
@@ -271,9 +299,10 @@ happiness_app <- function(data, predictors,
     # Keep the predictor and moderator out of the control menu.
     shiny::observeEvent(list(input$primary, input$moderator), {
       taken <- c(input$primary, input$moderator)
+      choices <- menu(control_choices(predictor_groups, taken))
       shinyWidgets::updatePickerInput(
         session, "controls",
-        choices = control_choices(predictor_groups, taken),
+        choices = choices$choices, choicesOpt = choices$options,
         selected = setdiff(shiny::isolate(input$controls), taken)
       )
     }, ignoreInit = TRUE)
@@ -329,7 +358,7 @@ happiness_app <- function(data, predictors,
       } else {
         ""
       }
-      tryCatch(
+      result <- tryCatch(
         analyse_happiness(
           input$primary, moderator,
           data = analysed_data(), predictors = predictors,
@@ -339,6 +368,11 @@ happiness_app <- function(data, predictors,
         ),
         error = function(error) error
       )
+      # The tiles, summary, plot and tables show the readable labels.
+      if (!inherits(result, "error") && !is.null(variable_info)) {
+        result$labels <- stats::setNames(variable_info$label, variable_info$variable)
+      }
+      result
     })
     analysis_failed <- shiny::reactive(inherits(result(), "error"))
     usable_result <- shiny::reactive({
@@ -362,11 +396,31 @@ happiness_app <- function(data, predictors,
     output$r_squared <- shiny::renderText(
       sprintf("%.0f%%", 100 * usable_result()$r_squared)
     )
-    effect <- shiny::reactive(key_effect(usable_result()))
+    # The SD of the predictor across all countries, for the effect per SD.
+    predictor_sd <- shiny::reactive({
+      if (is.null(variable_info)) return(NULL)
+      variable_info$sd[match(usable_result()$primary, variable_info$variable)]
+    })
+    effect <- shiny::reactive(key_effect(usable_result(), model_countries(), predictor_sd()))
+    output$effect_sd <- shiny::renderText(effect()$per_sd)
     output$effect_title <- shiny::renderText(effect()$title)
     output$effect_value <- shiny::renderText(effect()$value)
     output$effect_detail <- shiny::renderText(effect()$detail)
-    output$effect_baseline <- shiny::renderText(effect()$baseline)
+    # The effect without the moderator, or the example of a logged predictor.
+    output$effect_baseline <- shiny::renderText(c(effect()$baseline, effect()$example))
+
+    # Notes on the chosen variables ----
+    output$variable_notes <- shiny::renderUI({
+      chosen <- unique(c(input$primary, input$moderator, input$controls))
+      chosen <- chosen[chosen %in% names(predictor_notes)]
+      if (length(chosen) == 0) return(NULL)
+      shiny::div(
+        class = "small alert alert-warning py-2 px-3",
+        lapply(chosen, function(variable) {
+          shiny::p(class = "mb-1", shiny::tags$b(paste0(variable, ":")), predictor_notes[[variable]])
+        })
+      )
+    })
 
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
@@ -383,11 +437,20 @@ happiness_app <- function(data, predictors,
       }
       interactive_plot(plot)
     })
-    output$plot_note <- shiny::renderUI(
-      shiny::p(class = "small text-muted mt-2 mb-0", plot_caption(usable_result(), " "))
-    )
+    # Below the plot: what it shows, and a warning when a curve fits
+    # clearly better than the straight line.
+    output$plot_note <- shiny::renderUI({
+      curve <- curvature_test(usable_result())
+      shiny::tagList(
+        shiny::p(class = "small text-muted mt-2 mb-0", plot_caption(usable_result(), " ")),
+        if (!is.null(curve) && curve$misleading) {
+          shiny::p(class = "small alert alert-warning mt-2 mb-0 py-2 px-3",
+                   describe_curvature(curve, usable_result()))
+        }
+      )
+    })
     output$summary <- shiny::renderUI(
-      shiny::tags$ul(lapply(describe_result(usable_result()), shiny::tags$li))
+      shiny::tags$ul(lapply(describe_result(usable_result(), predictor_sd()), shiny::tags$li))
     )
     output$coefficients <- reactable::renderReactable(
       reactable::reactable(
@@ -448,6 +511,23 @@ happiness_app <- function(data, predictors,
         pagination = FALSE
       )
     )
+    output$variable_table <- reactable::renderReactable({
+      shiny::req(variable_info)
+      table <- data.frame(
+        Variable = variable_info$label,
+        Unit = variable_info$unit,
+        Source = variable_info$source,
+        Transformation = variable_info$transformation,
+        Countries = variable_info$n,
+        SD = ifelse(is.na(variable_info$sd), "", format_number(variable_info$sd)),
+        check.names = FALSE
+      )
+      reactable::reactable(
+        table[order(tolower(table$Variable)), ],
+        compact = TRUE, striped = TRUE, pagination = FALSE, searchable = TRUE,
+        columns = list(Variable = reactable::colDef(minWidth = 180), Unit = reactable::colDef(minWidth = 180))
+      )
+    })
     output$vif <- shiny::renderUI({
       vif <- variance_inflation(usable_result())
       if (is.null(vif)) {
@@ -481,6 +561,35 @@ predictor_menu <- function(predictor_groups) {
     group <- group[order(tolower(group))]
     stats::setNames(as.list(group), group)
   })
+}
+
+# Give a menu readable labels and show each variable's unit (and
+# transformation) below it. The values stay the variable names. Without
+# variable_info the menu is returned as it is.
+menu_options <- function(choices, variable_info) {
+  if (is.null(variable_info)) return(list(choices = choices, options = NULL))
+  label_of <- function(variable) {
+    row <- match(variable, variable_info$variable)
+    if (is.na(row)) variable else variable_info$label[row]
+  }
+  # Sorted by label within each group, as the menu is read.
+  choices <- lapply(choices, function(group) {
+    if (!is.list(group)) return(group)
+    group <- unlist(group, use.names = FALSE)
+    labels <- vapply(group, label_of, character(1))
+    order <- order(tolower(labels))
+    stats::setNames(as.list(group[order]), labels[order])
+  })
+  values <- unlist(choices, use.names = FALSE)
+  rows <- match(values, variable_info$variable)
+  subtext <- ifelse(
+    is.na(rows), "",
+    ifelse(variable_info$transformation[rows] %in% c("none", ""),
+           variable_info$unit[rows],
+           paste0(variable_info$unit[rows], "; ", variable_info$transformation[rows]))
+  )
+  # tokens: live search also finds the variable by its original name.
+  list(choices = choices, options = list(subtext = subtext, tokens = values))
 }
 
 # The moderator menu: "None" plus every predictor except the chosen one.
@@ -561,8 +670,12 @@ app_theme <- function() {
   # Space and a soft purple shadow between the blocks of the page; the
   # profile card sits inside its output placeholder, so it gets its own rule. The number tiles get less
   # padding and a smaller number, so they take little height. The 'None'
-  # moderator is a real choice, so it is not greyed out.
+  # moderator is a real choice, so it is not greyed out. The unit under
+  # each menu entry gets its own line, so it is not cut off.
   bslib::bs_add_rules(theme, "
+    .bootstrap-select .dropdown-menu li a .text-muted {
+      display: block; white-space: normal; font-size: 0.75rem; margin-left: 0;
+    }
     .bslib-page-main > :not(:empty):not(:last-child),
     .bslib-page-main > .shiny-html-output > .card { margin-bottom: 1.5rem; }
     .bslib-page-main .card { box-shadow: 0 2px 10px rgba(61, 39, 102, 0.12); }

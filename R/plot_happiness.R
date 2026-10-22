@@ -8,6 +8,8 @@
 #' (numeric moderator), so the plot shows exactly the model that was tested.
 #' Control variables are held at their mean (numeric) or reference group
 #' (categorical) in the lines; the points show the countries as they are.
+#' A logged predictor (see log_scale()) gets an axis in its original units
+#' on a log scale, so the line stays straight.
 #'
 #' @param result The list returned by analyse_happiness().
 #' @param countries Optional country names, in the same row order as the data
@@ -27,6 +29,8 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
   )
 
   primary_is_numeric <- is.numeric(model_data$primary)
+  scale <- if (primary_is_numeric) log_scale(result$primary)
+  primary_name <- if (is.null(scale)) display_name(result, result$primary) else scale$name
 
   # Colour the countries by group only when the moderator is categorical.
   colour_points <- result$moderation && !is.numeric(model_data$moderator)
@@ -47,13 +51,13 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
 
     country <- countries[model_rows]
     primary_value <- if (primary_is_numeric) {
-      format(signif(model_data$primary, 3))
+      format_number(original_units(model_data$primary, result$primary), 3)
     } else {
       as.character(model_data$primary)
     }
     model_data$tooltip <- paste0(
       "<b>", country, "</b><br>Happiness: ", sprintf("%.2f", model_data$happiness),
-      "<br>", result$primary, ": ", primary_value
+      "<br>", primary_name, ": ", primary_value
     )
   }
 
@@ -110,6 +114,13 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
       )
   }
 
+  if (!is.null(scale)) {
+    breaks <- log_axis_breaks(range(model_data$primary), scale$base)
+    plot <- plot + ggplot2::scale_x_continuous(
+      breaks = log(breaks, base = scale$base), labels = format_number(breaks)
+    )
+  }
+
   # Keep the happiness scale (0-10) visible: with very small groups the
   # confidence intervals can be huge and would otherwise flatten the plot.
   plot <- plot + ggplot2::coord_cartesian(ylim = c(0, 10))
@@ -117,14 +128,14 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
   legend_title <- if (!result$moderation) {
     NULL
   } else if (is.numeric(model_data$moderator)) {
-    paste(result$moderator, "level")
+    paste(display_name(result, result$moderator), "level")
   } else {
-    result$moderator
+    display_name(result, result$moderator)
   }
 
   plot +
     ggplot2::labs(
-      x = result$primary,
+      x = if (is.null(scale)) primary_name else paste(scale$name, "(log scale)"),
       y = "Happiness (ladder score, 0-10)",
       colour = legend_title,
       fill = if (primary_is_numeric) legend_title,
@@ -141,11 +152,26 @@ plot_caption <- function(result, line_break = "\n") {
   paste0(
     result$n_countries, " countries. Lines and bands: model predictions with 95% CI",
     if (length(result$control_variables) > 0) {
-      paste0(",", line_break, "with ", paste(result$control_variables, collapse = ", "),
+      paste0(",", line_break, "with ", paste(display_name(result, result$control_variables), collapse = ", "),
              " held at the mean or reference group")
     },
     "."
   )
+}
+
+# Axis ticks for a logged predictor, in original units: the powers of 10
+# within the range of the data, or 1, 2 and 5 times them when the data span
+# too few powers of 10 to give at least three ticks.
+log_axis_breaks <- function(log_range, base) {
+  low <- base^log_range[1]
+  high <- base^log_range[2]
+  powers <- 10^(floor(log10(low)):ceiling(log10(high)))
+  breaks <- powers[powers >= low & powers <= high]
+  if (length(breaks) < 3) {
+    breaks <- as.vector(outer(c(1, 2, 5), powers))
+    breaks <- breaks[breaks >= low & breaks <= high]
+  }
+  breaks
 }
 
 # Build the values at which the model's predictions are plotted ----

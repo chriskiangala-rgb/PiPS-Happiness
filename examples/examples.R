@@ -26,15 +26,15 @@ print(unadjusted$primary_coefficients)
 
 # Example 2: the same predictor with control variables ----
 # Question: does social support still matter when we compare countries with
-# the same GDP and life expectancy? Richer and healthier countries often
+# the same GDP per person and life expectancy? Richer and healthier countries often
 # have both more social support and more happiness, so part of the link in
 # example 1 may come from those. Controlling for them takes that part out.
 # Compare the "primary" estimate with example 1: if it gets smaller, part of
-# the link was explained by GDP and life expectancy. all_coefficients also
+# the link was explained by GDP per person and life expectancy. all_coefficients also
 # shows the estimates of the control variables themselves.
 controlled <- analyse_happiness(
   primary_predictor = "Social support",
-  control_variables = c("GDP", "Life expectancy")
+  control_variables = c("log2(GDP per person)", "Life expectancy")
 )
 print(controlled$primary_coefficients)
 print(controlled$all_coefficients)
