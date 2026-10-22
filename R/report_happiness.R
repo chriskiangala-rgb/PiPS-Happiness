@@ -269,7 +269,7 @@ country_profile <- function(country, result, data, analysed_data) {
   if (!country %in% analysed_data[["Country name"]]) {
     return("Left out by your selection of continents.")
   }
-  rows <- as.integer(rownames(result$model_data))
+rows <- result$model_rows
   analysed_countries <- analysed_data[["Country name"]][rows]
   if (!country %in% analysed_countries) {
     variables <- c("happiness", result$primary, result$moderator, result$control_variables)

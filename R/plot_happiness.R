@@ -34,9 +34,20 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
 
   # model_data keeps the row numbers of the analysed data, which link each
   # point back to its country.
-  has_tooltip <- !is.null(countries)
-  if (has_tooltip) {
-    country <- countries[as.integer(rownames(model_data))]
+# model_rows links each model observation to its original input-data row.
+has_tooltip <- !is.null(countries)
+if (has_tooltip) {
+  model_rows <- result$model_rows
+
+  if (is.null(model_rows) ||
+      length(model_rows) != nrow(model_data) ||
+      anyNA(model_rows) ||
+      any(model_rows < 1 | model_rows > length(countries)) ||
+      any(model_rows != floor(model_rows))) {
+    stop("result$model_rows must identify valid rows in countries.")
+  }
+
+  country <- countries[model_rows]
     primary_value <- if (primary_is_numeric) {
       format(signif(model_data$primary, 3))
     } else {
