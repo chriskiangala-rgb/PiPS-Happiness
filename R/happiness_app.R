@@ -76,6 +76,39 @@ happiness_app <- function(data, predictors) {
       #   )
       # ),
 
+      # PLANNED: choose which countries are analysed, to check whether a
+      # result depends on a few countries or on one part of the world.
+      # - Continents: all selected by default. This generalises the two-
+      #   continent comparison above; once it exists, that comparison only
+      #   needs the reference continent.
+      # - Exclude countries: e.g. the influential countries from the Model
+      #   checks tab.
+      # The tiles and the plot caption always show how many countries are
+      # included and which were left out, so cherry-picking stays visible.
+      # The filtering happens before analyse_happiness() is called, see
+      # analysed_data() in the server.
+      # shinyWidgets::pickerInput(
+      #   "continents", "Continents",
+      #   choices = levels(data$continent), selected = levels(data$continent),
+      #   multiple = TRUE,
+      #   options = list(`actions-box` = TRUE)
+      # ),
+      # shinyWidgets::pickerInput(
+      #   "excluded_countries", "Leave out countries (optional)",
+      #   choices = sort(data[["Country name"]]),
+      #   multiple = TRUE,
+      #   options = list(`live-search` = TRUE, size = 10)
+      # ),
+
+      # PLANNED: highlight one country in the map and the plot, and show its
+      # profile (see the country card below the tiles). Only changes what
+      # is shown, not the analysis.
+      # shinyWidgets::pickerInput(
+      #   "highlight_country", "Highlight a country (optional)",
+      #   choices = c("None" = "", sort(data[["Country name"]])),
+      #   options = list(`live-search` = TRUE, size = 10)
+      # ),
+
       shiny::helpText(
         "Explore, don't conclude: with this many possible combinations some",
         "results will be significant by chance. All results compare countries,",
@@ -115,16 +148,21 @@ happiness_app <- function(data, predictors) {
       )
     ),
 
+    # PLANNED: profile card of the highlighted country, shown only when one
+    # is chosen: its happiness and rank, its value on the predictor (and
+    # moderator) with rank, and how much happier or unhappier it is than
+    # the model predicts. If it was left out of the analysis, say why
+    # (missing data or excluded by the user).
+    # shiny::uiOutput("country_profile"),
+
     # Main views, one tab each ----
+    # The map is the first thing a visitor sees: it introduces the data
+    # before the analysis. Until it is built, the app opens on the plot.
+    # PLANNED: remove selected = "Plot" once the map works.
     bslib::navset_card_tab(
+      id = "main_view",
+      selected = "Plot",
       full_screen = TRUE,
-      bslib::nav_panel(
-        "Plot",
-        # PLANNED: option to add a curved (spline) line next to the straight
-        # model line, to show whether the association bends.
-        # shiny::checkboxInput("show_curve", "Also show a curved line", FALSE),
-        plotly::plotlyOutput("plot", height = "460px")
-      ),
       bslib::nav_panel(
         "Map",
         # PLANNED: a world map coloured by the chosen layer.
@@ -134,6 +172,7 @@ happiness_app <- function(data, predictors) {
         #   predicts. Below it, Moran's I: are neighbouring countries similar?
         # - Countries without data in grey, with "No data" in the legend.
         # - Hover: country, value and happiness, as in the plot.
+        # - The highlighted country gets a thick outline.
         # - A note that large countries dominate the map visually, while each
         #   country counts once in the analysis.
         # Needs ISO3 country codes stored in combined_data (prepare_data.R).
@@ -151,6 +190,13 @@ happiness_app <- function(data, predictors) {
           "A world map coloured by happiness, by the chosen predictor, or by",
           "how much happier or unhappier each country is than the model predicts."
         )
+      ),
+      bslib::nav_panel(
+        "Plot",
+        # PLANNED: option to add a curved (spline) line next to the straight
+        # model line, to show whether the association bends.
+        # shiny::checkboxInput("show_curve", "Also show a curved line", FALSE),
+        plotly::plotlyOutput("plot", height = "460px")
       ),
       bslib::nav_panel(
         "Model checks",
@@ -243,6 +289,14 @@ happiness_app <- function(data, predictors) {
     #   )
     # })
 
+    # PLANNED: the countries chosen in the sidebar. analyse_happiness(),
+    # the map and the plot then use analysed_data() instead of data.
+    # analysed_data <- shiny::reactive({
+    #   keep <- data$continent %in% input$continents &
+    #     !data[["Country name"]] %in% input$excluded_countries
+    #   data[keep, , drop = FALSE]
+    # })
+
     # Some combinations cannot be estimated (e.g. too few countries);
     # keep analyse_happiness()'s error so it can be shown instead of a crash.
     # PLANNED: also pass the PR 8 arguments:
@@ -282,7 +336,8 @@ happiness_app <- function(data, predictors) {
     # PLANNED (in plot_happiness()): hold control variables at their mean or
     # reference group in the prediction lines, draw the bands from the
     # robust standard errors, keep the x-axis in the original units, and
-    # add the curved line when input$show_curve is ticked.
+    # add the curved line when input$show_curve is ticked. Draw the
+    # highlighted country (input$highlight_country) larger and labelled.
     output$plot <- plotly::renderPlotly({
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
       plot <- plot_happiness(result(), countries = data[["Country name"]])
@@ -306,10 +361,18 @@ happiness_app <- function(data, predictors) {
       )
     )
 
+    # Highlighted country ----
+    # PLANNED: see the country card above the tabs for what it shows.
+    # output$country_profile <- shiny::renderUI({
+    #   shiny::req(input$highlight_country != "")
+    #   country_profile(input$highlight_country, usable_result(), data)
+    # })
+
     # Map ----
     # PLANNED: see the Map tab above for what it shows.
     # output$map <- plotly::renderPlotly(
-    #   map_happiness(usable_result(), data, layer = input$map_layer)
+    #   map_happiness(usable_result(), data, layer = input$map_layer,
+    #                 highlight = input$highlight_country)
     # )
     # output$map_note <- shiny::renderUI(map_note(usable_result(), data))
 
@@ -438,7 +501,8 @@ remove_empty_fonts <- function(settings) {
 #   Moran's I of the residuals (neighbours from latitude and longitude).
 #
 # In R/map_happiness.R:
-#   map_happiness(result, data, layer)   plotly choropleth by ISO3 code.
+#   map_happiness(result, data, layer, highlight)
+#                                        plotly choropleth by ISO3 code.
 #   map_note(result, data)               Caveat text and Moran's I result.
 #
 # In R/check_model.R:
@@ -447,3 +511,8 @@ remove_empty_fonts <- function(settings) {
 #   influential_countries(result, countries)
 #                                        Countries with the largest Cook's distance.
 #   variance_inflation(result)           VIF per variable, flagged above 5.
+#
+# In R/report_happiness.R:
+#   country_profile(country, result, data)
+#                                        Card with the country's values, ranks
+#                                        and residual, or why it was left out.
