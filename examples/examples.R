@@ -7,7 +7,7 @@
 # along without knowing R. Predictor names must be written exactly as in the
 # list printed first.
 source("R/prepare_data.R")
-source("R/analyse_happiness.R")
+source("R/analysis/analyse_happiness.R")
 
 # Available predictors and the number of countries per continent
 print(predictor_types, row.names = FALSE)
@@ -49,10 +49,14 @@ print(controlled$all_coefficients)
 # (negative) the link is on that continent than in Africa.
 # interaction_test asks one overall question: does the link differ between
 # continents at all? A p_value below 0.05 says it does.
+# Oceania has only 2 countries with data, too few for a link of its own, so
+# it is left out (see excluded_groups). All standard errors, CIs and
+# p-values are robust (HC3); use robust = FALSE for the normal ones.
 moderated <- analyse_happiness(
   primary_predictor = "Social support",
   moderator = "continent"
 )
+print(moderated$excluded_groups)
 print(moderated$interaction_test)
 print(moderated$interaction_coefficients)
 print(moderated$all_coefficients)
@@ -72,6 +76,21 @@ asia_europe <- analyse_happiness(
 )
 print(asia_europe$interaction_coefficients)
 print(asia_europe$interaction_test)
+
+# Example 5: a curve instead of a straight line ----
+# Question: does happiness rise and then fall with labour force
+# participation? A straight line finds almost nothing (R-squared near 0),
+# but the countries with a medium participation are the happiest.
+# shape = "curve" fits a natural spline that can bend. curve_test compares
+# it with the straight line; r_squared and line_r_squared show how much
+# each explains. The spline coefficients have no meaning on their own:
+# look at the plot (plot_happiness(curved)).
+curved <- analyse_happiness(
+  primary_predictor = "Population: Labor force participation (%)",
+  shape = "curve"
+)
+print(curved$curve_test)
+print(c(curve = curved$r_squared, line = curved$line_r_squared))
 
 # Interpretation of the results ----
 # No moderator: the primary coefficient is its unadjusted association.

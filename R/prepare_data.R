@@ -338,7 +338,7 @@ variable_details <- rbind(
   c("Minimum wage", "Minimum wage", "US$ per hour", world_source, "none"),
   c("Out of pocket health expenditure", "Out-of-pocket health spending", "% of health spending", world_source, "none"),
   c("Physicians per thousand", "Physicians per 1,000 people", "physicians per 1,000 people", world_source, "none"),
-  c("Population: Labor force participation (%)", "Labour force participation (%)", "% of people aged 15+", world_source, "none"),
+  c("Population: Labor force participation (%)", "Labour force participation (%)", "% of people", world_source, "none"),
   c("Tax revenue (%)", "Tax revenue (%)", "% of GDP", world_source, "none"),
   c("Total tax rate", "Total tax rate", "% of commercial profits", world_source, "none"),
   c("Unemployment rate", "Unemployment rate", "% of the labour force", world_source, "none"),
@@ -353,7 +353,7 @@ variable_details <- rbind(
   c("log2(Population)", "Population", "people", world_source, "log2"),
   c("log2(Land Area(Km2))", "Land area", "km2", world_source, "log2"),
   c("log2(Density (P/Km2))", "Population density", "people per km2", world_source, "log2"),
-  c("log2(CPI)", "Consumer price index", "index, 2010 = 100", world_source, "log2"),
+  c("log2(CPI)", "Consumer price index", "index", world_source, "log2"),
   c("continent", "Continent", "category (North and South America split)", "countrycode package", "assigned from the country name")
 )
 variable_info <- data.frame(

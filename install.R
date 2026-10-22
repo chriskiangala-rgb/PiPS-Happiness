@@ -6,9 +6,11 @@ required_packages <- c(
   "bslib",
   "countrycode",
   "ggplot2",
+  "lmtest",
   "plotly",
   "reactable",
   "rmarkdown",
+  "sandwich",
   "shiny",
   "shinyWidgets",
   "thematic"
