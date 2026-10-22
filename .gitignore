@@ -4,3 +4,5 @@
 .Ruserdata
 .DS_Store
 .claude/
+# Knitted output of main.Rmd
+main.html
