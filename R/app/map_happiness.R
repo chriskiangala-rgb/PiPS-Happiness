@@ -85,7 +85,8 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
 
 #' Explain the map in a few sentences
 #'
-#' Always says what grey means and that large countries dominate visually.
+#' Always says what grey means (no data, or a continent that is not
+#' selected) and that large countries dominate visually.
 #' For the residual layer it adds Moran's I: are nearby countries more
 #' alike than the model predicts? If so, the countries are not independent
 #' and the model's p-values are likely too small.
@@ -94,8 +95,21 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
 #'
 #' @return A character vector with one sentence per element.
 map_note <- function(result, data, layer) {
+  # A filtered factor keeps all its levels, so these are the continents the
+  # user did not select.
+  unselected <- if (is.factor(data$continent)) {
+    setdiff(levels(data$continent), as.character(unique(data$continent)))
+  } else {
+    character(0)
+  }
+  grey <- if (length(unselected) > 0) {
+    sprintf("Grey countries are not in this analysis: they have no data, or are on a continent that is not selected (%s).",
+            paste(unselected, collapse = ", "))
+  } else {
+    "Grey countries are not in this analysis (no data)."
+  }
   sentences <- c(
-    "Grey countries are not in this analysis (no data).",
+    grey,
     "Large countries stand out on a map, but every country counts once in the analysis."
   )
   if (layer != "residual") return(sentences)
