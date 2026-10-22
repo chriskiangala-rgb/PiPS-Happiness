@@ -4,7 +4,7 @@
 ### A Project by:
 Diemithry Kloppenburg, Tian Lin & Christian Kiangala
 ## 2. Citation
-Kloppenburg, D., Lin, T., & Kiangala, C. B. (2026, October 22). PiPS-Happiness. Github.com. Retrieved October 22, 2026, from https://github.com/chriskiangala-rgb/PiPS-Happiness
+Kloppenburg, D., Lin, T., & Kiangala, C. B. (2026). PiPS-Happiness [Computer software]. GitHub. https://github.com/chriskiangala-rgb/PiPS-Happiness
 ## 3. App Goal
 
 Why are people happier in some countries than in others? Many country characteristics go together with happiness, such as wealth, health, social support and freedom. These characteristics also go together with each other. The app lets you explore these associations yourself, without writing code.
