@@ -16,6 +16,10 @@ To start the app, open this file in RStudio and run the chunk below (the
 green arrow at its top right). Knitting the file only shows the code, because
 an app cannot run inside a static HTML page.
 
+The interactive app is built with shiny [@chang2026] and plotly
+[@sievert2020]. In addition to the happiness data, it uses the Global
+Country Information Dataset 2023 [@elgiriyewithana2023].
+
 ```{r app, eval = FALSE}
 shiny::runApp(happiness_app(
   combined_data, available_predictors,
@@ -24,28 +28,143 @@ shiny::runApp(happiness_app(
   variable_info = variable_info
 ))
 ```
+## Analyse the data
+
+### Research question
+
+The World Happiness Report identifies social support as one of the main
+factors associated with differences in happiness between countries
+[@helliwell2023]. We examine whether this association varies across
+continents, while accounting for differences in GDP.
+
+Does the relationship between social support and happiness differ between
+continents, after controlling for Logged GDP per capita?
+
+### Data and method
+
+We use country-level happiness data from the World Happiness Report 2023
+[@helliwell2023; @singh2023]. Happiness is the outcome, social support is
+the primary predictor, continent is the moderator, and Logged GDP per
+capita is the control variable.
+
+We fit a linear regression with an interaction between social support and
+continent. This allows the association between social support and happiness
+to differ between continents. The overall interaction test evaluates whether
+these differences improve the model compared with a model without the
+interaction.
+
+We use HC3 robust standard errors, which allow the residual spread to vary
+between countries [@long2000]. Countries with missing or nonfinite values
+are excluded. Continents with fewer than five countries with complete
+data are also excluded.
+
+Analyses were run in R [@rcoreteam2026], using HC3 standard errors from
+the sandwich package [@zeileis2004] and robust tests from the lmtest
+package [@zeileis2002]. Continents were assigned using the countrycode
+package [@arelbundock2018].
+
+```{r analysis}
+social_support_result <- analyse_happiness(
+  primary_predictor = "Social support",
+  moderator = "continent",
+  control_variables = "Logged GDP per capita"
+)
+```
+
+### Visualisation
+
+The points represent the observed happiness scores of individual countries.
+Each continent has its own fitted line and 95% confidence band. For these
+predictions, Logged GDP per capita is held at its mean across the countries
+included in the analysis. The points are not adjusted for GDP, so they need
+not be centred around their continent's line. For example, countries with
+above-average GDP may sit above the line because the line assumes average
+GDP. The lines are restricted to the social support values observed within
+each continent.
+
+```{r analysis-plot, fig.width=9, fig.height=6}
+plot_happiness(social_support_result)
+```
+
+### Results
+
+The coefficient table shows the estimated associations and their confidence
+intervals. Africa is the reference continent. The social support coefficient
+is the estimated association between social support and happiness in Africa,
+after controlling for Logged GDP per capita. Interaction coefficients show
+how the slopes of the other continents differ from the slope in Africa.
+
+```{r analysis-coefficients}
+knitr::kable(format_coefficients(social_support_result))
+```
+
+The relationship between social support and happiness differs between
+continents after controlling for Logged GDP per capita. The overall robust
+Wald test gives $$F(4, 124) = 5.97$$, $$p < .001$$.
+
+The estimated slopes are approximately 6.3 in Europe and 6.1 in Asia,
+indicating stronger positive associations in these continents. The estimated
+slope in Africa is 1.15, with a confidence interval that includes zero.
+The estimated slopes are approximately 0.75 in North America and 3.0 in
+South America. North and South America include only 11 and 10 countries,
+respectively, so their estimates should be interpreted cautiously.
+
+These findings suggest that social support is not equally strongly
+associated with happiness across continents. However, they do not establish
+why these differences occur. Differences in other country characteristics,
+not fully captured by GDP, could contribute to the observed pattern.
+
+```{r analysis-results, results='asis'}
+cat(
+  paste(describe_result(social_support_result), collapse = "\n\n"),
+  "\n"
+)
+```
+
+### Limitations
+
+These are observational, country-level associations. They do not establish
+causation or show that the same relationships hold for individuals.
+Adjusting for GDP does not remove all possible confounding.
+
+This analysis addresses one of many questions that can be explored with
+the app, so the findings should be treated as exploratory rather than
+confirmatory.
+
+Oceania was excluded because only two countries had complete data, below
+the minimum of five. North America and South America included only 11 and
+10 countries, respectively, making their slope estimates imprecise.
+HC3 standard errors allow unequal residual spread but do not correct for
+spatial dependence between countries.
 
 ## Assumption checks
 
-The regression assumptions are checked for every predictor in the simple
-model happiness ~ predictor (README, Methods). The counts:
+The checks below assess separate models of happiness against each predictor,
+rather than the social support moderation model reported above. The table
+summarises how often the diagnostic checks flag potential problems.
 
 ```{r assumption-checks}
 assumption_checks <- check_assumptions()
 knitr::kable(assumption_checks$summary)
 ```
 
-Nearby countries are more alike than the model predicts (Moran's I of the
-residuals), less so with continent as control:
+We assess spatial dependence in the residuals using Moran's I, comparing
+models with and without continent as a control [@moran1950]:
 
 ```{r spatial}
 knitr::kable(assumption_checks$spatial, digits = 3)
 ```
 
-The effect with continent as control, with standard errors clustered by
-continent (a robustness check; with only 6 clusters, interpret it with
-caution):
+For selected predictors, we include continent as a control and calculate
+standard errors clustered by continent [@zeileis2020]. These are robustness
+checks for separate models, not the moderation model above. Interpret them
+cautiously because the number of clusters is small:
 
 ```{r clustered}
 knitr::kable(assumption_checks$clustered, digits = 3)
 ```
+
+## References
+
+::: {#refs}
+:::
