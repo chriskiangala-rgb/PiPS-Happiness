@@ -29,6 +29,36 @@ Run `source("install.R")` once; it installs any required package you do not have
 
 ## 7. Step-by-step Explanation
 ## 8. Methods
+
+### 1. Methods
+
+We regress each country’s happiness—the **World Happiness Report 2023 ladder score**—on one predictor at a time, optionally including a moderator and control variables. The number of countries included depends on the variables selected and the available data.
+
+- **Data transformations:** When data cleanup is enabled, country totals are converted to per-person values and skewed variables are log2-transformed. This helps distinguish relative differences between countries from differences in country size.
+- **Statistical inference:** All inference uses HC3 heteroskedasticity-consistent standard errors (Long & Ervin, 2000). Moderation is assessed using a joint Wald test with the same covariance matrix.
+- **Small groups:** Categories of a predictor or moderator containing fewer than five countries are excluded from that analysis because estimates for these groups may be unreliable.
+- **Nonlinear relationships:** For every numeric predictor, we test whether adding squared and cubed terms improves the fit compared with a straight-line relationship.
+
+### 2. Assumption checks
+
+We checked the regression assumptions for **[number checked] predictors**.
+
+- **Unequal residual variance:** The Breusch–Pagan test flagged unequal residual variance for [number flagged] predictors. HC3 robust standard errors were at least 20% larger than conventional standard errors for [number with larger SEs] predictors, reaching [largest ratio] times the conventional estimate for [predictor]. We therefore use HC3 by default rather than selecting it based on a preliminary test. HC3 changed the statistical significance conclusion for [number changed] of [number checked] predictors.
+- **Residual normality:** Residuals deviated from normality for [number flagged] predictors. Models included [minimum sample size] to [maximum sample size] countries. Larger samples can reduce concerns about non-normality, although outliers and influential observations may still affect inference.
+- **Linearity:** A straight line was a reasonable summary for [number adequately summarised] of [number numeric] numeric predictors. For [number misleading] predictors, the relationship was clearly curved or non-monotonic, so a linear slope alone did not adequately describe it. For example, for [predictor], a linear model explained [linear percentage]% of the variation in happiness, compared with [curve percentage]% for a model including squared and cubed terms.
+- **Spatial dependence:** For social support, residuals from nearby countries were similar (Moran’s I = [value], p = [value]). After controlling for continent, Moran’s I decreased to [value] (p = [value]), indicating [smaller but still significant / no longer statistically significant] spatial dependence. HC3 standard errors do not account for this dependence.
+- **Continent-clustered inference:** With standard errors clustered by continent and t-tests using five degrees of freedom, the association between social support and happiness remained statistically significant (p = [value]). Because there are few continent clusters, this result should be interpreted cautiously.
+
+### 3. Limitations
+
+- **Countries, not individuals:** Results describe differences between countries. They cannot establish why individual people are happier; drawing individual-level conclusions from country-level associations risks the ecological fallacy.
+- **Associations, not causes:** The data are cross-sectional and do not establish causality. For example, social support may contribute to happiness, but happier countries may also develop stronger social support.
+- **Omitted variables:** Culture, history, institutions and other unmeasured factors may explain both a predictor and happiness.
+- **Countries are not independent:** Nearby countries have similar residuals, as indicated by Moran’s I. Controlling for continent reduces this dependence, but any remaining dependence may affect standard errors and p-values. HC3 does not account for spatial dependence; spatial regression is a possible next step.
+- **Nonlinear relationships:** For [number of predictors] predictors, the relationship is clearly curved or non-monotonic. Their linear slopes alone do not adequately describe the relationship.
+- **Measurement and missing data:** The country-level variables come from a Kaggle dataset combining several sources and years, without source information for each variable. Some variables have substantial missing data. For example, minimum-wage data are available for [number with data] of [total countries] countries. Missing data may affect which countries are represented and introduce selection bias.
+- **Exploratory analysis:** Testing many predictors and combinations increases the chance of statistically significant findings occurring by chance. Results should be treated as hypotheses for further testing rather than definitive conclusions.
+  
 ## 9. Student Roles (Explaining what each student contributed to the project)
 ## 10. AI statement (Describing how and where AI was used)
 ## 11. References
