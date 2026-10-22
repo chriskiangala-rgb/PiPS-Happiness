@@ -125,6 +125,7 @@ analyse_happiness <- function(
       usable <- usable & !is.na(values) & trimws(as.character(values)) != ""
     }
   }
+  model_rows <- which(usable)
   model_data <- model_data[usable, , drop = FALSE]
   if (nrow(model_data) < 3L) {
     stop("Too few countries with complete data for these selections.")
@@ -217,11 +218,28 @@ analyse_happiness <- function(
   is_primary <- startsWith(coefficient_table$term, "primary") & !is_interaction
 
   # Show the real names of the control variables instead of control1, control2, ...
-  # (?![0-9]) stops control1 from also matching control10, control11, ...
+  # Map each coefficient to its formula term instead of guessing from its name.
+  design_matrix <- model.matrix(model)
+  coefficient_assignment <- attr(design_matrix, "assign")
+  formula_terms <- attr(terms(model), "term.labels")
+
+  # The full-rank check above ensures that no coefficients were dropped,
+  # so coefficient_table rows follow the model-matrix column order.
+  original_terms <- coefficient_table$term
+
   for (i in seq_along(control_names)) {
-    coefficient_table$term <- sub(
-      paste0("^", control_names[i], "(?![0-9])"), control_variables[i],
-      coefficient_table$term, perl = TRUE
+    term_index <- match(control_names[i], formula_terms)
+    coefficient_rows <- which(coefficient_assignment == term_index)
+
+    # Preserve factor-level suffixes, including those beginning with digits.
+    suffixes <- substring(
+      original_terms[coefficient_rows],
+      nchar(control_names[i]) + 1L
+    )
+
+    coefficient_table$term[coefficient_rows] <- paste0(
+      control_variables[i],
+      suffixes
     )
   }
 
@@ -275,7 +293,8 @@ analyse_happiness <- function(
     r_squared = model_summary$r.squared,
     model = model,
     additive_model = additive_model,
-    model_data = model_data
+    model_data = model_data,
+    model_rows = model_rows
   )
 }
 
