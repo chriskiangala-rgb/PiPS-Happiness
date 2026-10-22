@@ -110,7 +110,11 @@ analyse_happiness <- function(
   for (i in seq_along(control_variables)) {
     model_data[[control_names[i]]] <- data[[control_variables[i]]]
   }
-  
+
+  # Real variable name of each internal name, for messages and labels.
+  real_names <- c(primary = primary_predictor, setNames(control_variables, control_names))
+  if (moderator != "") real_names["moderator"] <- moderator
+
   # Use complete, finite values for every selected variable.
   usable <- rep(TRUE, nrow(model_data))
   for (column in names(model_data)) {
@@ -121,6 +125,7 @@ analyse_happiness <- function(
       usable <- usable & !is.na(values) & trimws(as.character(values)) != ""
     }
   }
+  model_rows <- which(usable)
   model_data <- model_data[usable, , drop = FALSE]
   if (nrow(model_data) < 3L) {
     stop("Too few countries with complete data for these selections.")
@@ -135,7 +140,7 @@ analyse_happiness <- function(
       model_data[[column]] <- droplevels(factor(model_data[[column]]))
     }
     if (length(unique(model_data[[column]])) < 2L) {
-      stop(paste("No variation in", column, "among the available countries."))
+      stop(paste("No variation in", real_names[[column]], "among the available countries."))
     }
     if (is.factor(model_data[[column]])) {
       # Set the reference on the column that holds continent: the
@@ -205,21 +210,40 @@ analyse_happiness <- function(
     row.names = NULL
   )
   
+  # Separate primary and interaction coefficients ----
+
+  # Decide this on the internal names, before the real control names are put
+  # back: a real name can contain a colon or start with "primary".
+  is_interaction <- grepl(":", coefficient_table$term, fixed = TRUE)
+  is_primary <- startsWith(coefficient_table$term, "primary") & !is_interaction
+
   # Show the real names of the control variables instead of control1, control2, ...
+  # Map each coefficient to its formula term instead of guessing from its name.
+  design_matrix <- model.matrix(model)
+  coefficient_assignment <- attr(design_matrix, "assign")
+  formula_terms <- attr(terms(model), "term.labels")
+
+  # The full-rank check above ensures that no coefficients were dropped,
+  # so coefficient_table rows follow the model-matrix column order.
+  original_terms <- coefficient_table$term
+
   for (i in seq_along(control_names)) {
-    coefficient_table$term <- sub(
-      paste0("^", control_names[i]), control_variables[i], coefficient_table$term
+    term_index <- match(control_names[i], formula_terms)
+    coefficient_rows <- which(coefficient_assignment == term_index)
+
+    # Preserve factor-level suffixes, including those beginning with digits.
+    suffixes <- substring(
+      original_terms[coefficient_rows],
+      nchar(control_names[i]) + 1L
+    )
+
+    coefficient_table$term[coefficient_rows] <- paste0(
+      control_variables[i],
+      suffixes
     )
   }
-  
-  # Separate primary and interaction coefficients ----
-  
-  # Separate main-effect coefficients from interaction coefficients.
-  is_interaction <- grepl(":", coefficient_table$term, fixed = TRUE)
-  primary_coefficients <- coefficient_table[
-    startsWith(coefficient_table$term, "primary") & !is_interaction,
-    , drop = FALSE
-  ]
+
+  primary_coefficients <- coefficient_table[is_primary, , drop = FALSE]
   interaction_coefficients <- coefficient_table[
     is_interaction, , drop = FALSE
   ]
@@ -269,7 +293,8 @@ analyse_happiness <- function(
     r_squared = model_summary$r.squared,
     model = model,
     additive_model = additive_model,
-    model_data = model_data
+    model_data = model_data,
+    model_rows = model_rows
   )
 }
 
