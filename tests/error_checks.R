@@ -29,7 +29,7 @@ stopifnot(
   )
 )
 
-#Check for unmatched countries
+# Check for unmatched countries
 
 print(unmatched_countries)
 
@@ -37,8 +37,8 @@ known_unmatched <- c("Kosovo", "Taiwan Province of China", "Hong Kong S.A.R. of 
 
 stopifnot("Unexpected unmatched countries" = all(unmatched_countries %in% known_unmatched))
 
-#There are unmatched countries. Maybe the app should put out a warning
-#that these countries cannot be used for the analysis
+# There are unmatched countries. Maybe the app should put out a warning
+# that these countries cannot be used for the analysis
 
 if (length(unmatched_countries) > 0) {
   warning(
@@ -54,8 +54,10 @@ stopifnot(
   "world_data has too few columns"          = ncol(world_data) > 10,
   "happiness_data has too few rows"         = nrow(happiness_data) > 100,
   "Duplicate column names in world_data"    = !anyDuplicated(names(world_data)),
-  "Expected world_data columns missing"     = all(c("Country", "GDP", "Population") %in% names(world_data)),
-  "Expected happiness_data columns missing" = all(c("Country name", "Ladder score") %in% names(happiness_data))
+  "Expected world_data columns missing"     =
+    all(c("Country", "GDP", "Population") %in% names(world_data)),
+  "Expected happiness_data columns missing" =
+    all(c("Country name", "Ladder score") %in% names(happiness_data))
 )
 
 # Check that required columns exist before accessing them.
@@ -142,8 +144,9 @@ if (any(na_share > 0.5)) {
 stopifnot(
   "Countries without continent" = !anyNA(combined_data$continent),
   "continent is not a factor"   = is.factor(combined_data$continent),
-  "Unexpected continent labels" = all(levels(combined_data$continent) %in%
-                                        c("Africa", "Asia", "Europe", "North America", "South America", "Oceania"))
+  "Unexpected continent labels" = all(levels(combined_data$continent) %in% c(
+    "Africa", "Asia", "Europe", "North America", "South America", "Oceania"
+  ))
 )
 
 # Warn about very small continent groups, which give unstable estimates.
@@ -184,7 +187,7 @@ check_analysis_result <- function(result,
                                   min_n = 30,
                                   max_excluded_share = 0.2) {
   coefficients <- result$all_coefficients
-  
+
   stopifnot(
     "Too few observations"    = result$n_countries >= min_n,
     "R-squared outside 0-1"   = result$r_squared >= 0 && result$r_squared <= 1,
@@ -192,16 +195,16 @@ check_analysis_result <- function(result,
     "p-values outside 0-1"    = all(coefficients$p_value >= 0 &
                                       coefficients$p_value <= 1, na.rm = TRUE)
   )
-  
+
   total_countries <- result$n_countries + result$n_excluded
-  
+
   if (result$n_excluded > max_excluded_share * total_countries) {
     warning(
       "More than ", max_excluded_share * 100,
       "% of the countries were excluded because of missing data."
     )
   }
-  
+
   invisible(TRUE)
 }
 
@@ -278,7 +281,8 @@ oceania_reference <- try(
 
 stopifnot(
   "HC3 should not change the estimates" =
-    isTRUE(all.equal(robust_result$all_coefficients$estimate, normal_result$all_coefficients$estimate)),
+    isTRUE(all.equal(robust_result$all_coefficients$estimate,
+                     normal_result$all_coefficients$estimate)),
   "robust = FALSE should give the normal standard errors" =
     isTRUE(all.equal(normal_result$all_coefficients$std_error,
                      unname(summary(normal_result$model)$coefficients[, 2]))),
@@ -344,7 +348,8 @@ stopifnot(
   "The HC3 p-value should equal the one of analyse_happiness()" =
     isTRUE(all.equal(row_of("Social support")$p_hc3, social_support$primary_coefficients$p_value)),
   "The normal p-value should equal the one of lm()" =
-    isTRUE(all.equal(row_of("Social support")$p_normal, social_support_line["primary", "Pr(>|t|)"])),
+    isTRUE(all.equal(row_of("Social support")$p_normal,
+                     social_support_line["primary", "Pr(>|t|)"])),
   "Only numeric predictors get a curve check" =
     all(is.na(per_predictor$curve_p[per_predictor$type == "categorical"])),
   "Labour force participation should be flagged as misleading as a line" =

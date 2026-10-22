@@ -168,8 +168,10 @@ stopifnot(
   "The tile should say what low and high are" =
     grepl("^Low = 25th percentile: .*high = 75th", curved_effect$example),
   "For a straight line, low to high is the slope times the distance" =
-    isTRUE(all.equal(line_difference$estimate,
-                     straight$primary_coefficients$estimate * (line_difference$high - line_difference$low))),
+    isTRUE(all.equal(
+      line_difference$estimate,
+      straight$primary_coefficients$estimate * (line_difference$high - line_difference$low)
+    )),
   "The summary should compare the curve with the line" =
     any(grepl("The curve explains .* a straight line", describe_result(curved))),
   "A fitted curve gets no curve warning" = is.null(curvature_test(curved)),
@@ -205,7 +207,8 @@ stopifnot(
   "The menu should keep the variable names as values" =
     setequal(unlist(labelled_menu$choices, use.names = FALSE), available_predictors),
   "The menu should show the labels" =
-    any(grepl("Labour force participation (%)", names(unlist(labelled_menu$choices)), fixed = TRUE)),
+    any(grepl("Labour force participation (%)", names(unlist(labelled_menu$choices)),
+              fixed = TRUE)),
   "Every menu entry should have a unit" =
     length(labelled_menu$options$subtext) == length(available_predictors) &&
     all(labelled_menu$options$subtext != "")
