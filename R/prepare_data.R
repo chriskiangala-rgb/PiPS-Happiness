@@ -1,8 +1,8 @@
 # Prepare the combined happiness + world dataset ----
-# Creates combined_data and available_predictors. Paths are relative to the
-# project root, so run this with the repo folder as the working directory.
-
-library(countrycode)
+# Creates combined_data, available_predictors, predictor_types,
+# predictor_notes and variable_info. Paths are relative to the project root,
+# so run this with the repo folder as the working directory. Intermediate
+# objects are removed at the end, so only the results remain.
 
 # Import datasets ----
 
@@ -34,7 +34,6 @@ name_changes <- c(
   "State of Palestine" = "Palestinian National Authority",
   "Turkiye" = "Turkey"
 )
-control_variables = c("Logged GDP per capita", "Life expectancy")
 # Replace these names in the happiness dataset's matching column.
 for (old_name in names(name_changes)) {
   happiness_data$join_country[happiness_data$join_country == old_name] <- name_changes[[old_name]]
@@ -88,9 +87,8 @@ for (column in numeric_columns) {
 }
 # Transform and rescale predictors ----
 
-# Before z-scoring, one log2 unit represents a doubling.
-# After z-scoring, one unit represents one SD of the logged variable.
-# Zero or negative values become NA.
+# One log2 unit represents a doubling. Zero or negative values become NA,
+# because their log is undefined.
 
 log2_positive <- function(x) {
   x[!is.na(x) & x <= 0] <- NA
@@ -373,4 +371,15 @@ stopifnot(
   "Every predictor needs a row in variable_info" =
     setequal(variable_info$variable, available_predictors),
   "Labels must be unique" = !anyDuplicated(variable_info$label)
+)
+
+# Remove intermediate objects ----
+# Only the results above, and the raw data the error checks inspect, stay.
+
+rm(
+  column, continent_choices, country_iso3, derived_predictors,
+  happiness_predictors, i, is_americas, log_names, log_vars, log2_positive,
+  numeric_predictors, old_name, predictor_coverage, predictor_scale, replaced,
+  south_america, text_columns, variable_details, whr_source, world_predictors,
+  world_source
 )

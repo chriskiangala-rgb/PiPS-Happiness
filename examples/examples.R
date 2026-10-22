@@ -6,8 +6,8 @@
 # what the question is and how to read the printed numbers, so you can follow
 # along without knowing R. Predictor names must be written exactly as in the
 # list printed first.
-source("R/prepare_data.R")
-source("R/analysis/analyse_happiness.R")
+source("R/load_project.R")
+load_project()
 
 # Available predictors and the number of countries per continent
 print(predictor_types, row.names = FALSE)
