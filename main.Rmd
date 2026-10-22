@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include = FALSE}
-for (file in list.files("R", full.names = TRUE)) source(file)
+for (file in list.files("R", recursive = TRUE, full.names = TRUE)) source(file)
 ```
 
 ```{r app, eval = FALSE}
