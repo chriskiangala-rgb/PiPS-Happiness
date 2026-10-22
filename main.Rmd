@@ -1,6 +1,8 @@
 ---
 title: "What goes together with happiness?"
 output: html_document
+bibliography: references.bib
+csl: apa.csl
 ---
 
 ```{r setup, include = FALSE}
