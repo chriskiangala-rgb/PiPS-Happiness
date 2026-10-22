@@ -41,7 +41,7 @@ for (old_name in names(name_changes)) {
 }
 
 # Show countries in the happiness dataset without a world-data match.
- unmatched_countries <- setdiff(happiness_data$join_country, world_data$join_country)
+unmatched_countries <- setdiff(happiness_data$join_country, world_data$join_country)
 if (length(unmatched_countries) > 0) {
   message("No world-data match: ", paste(unmatched_countries, collapse = ", "))
 }
