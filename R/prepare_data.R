@@ -113,8 +113,8 @@ log_vars <- c("Maternal mortality ratio", "Infant mortality", "Population",
 stopifnot(all(log_vars %in% names(combined_data)))
 log_names <- paste0("log2(", gsub("\\s+", " ", log_vars), ")")
 
-for (v in log_vars) {
-  combined_data[[paste0("log2(", gsub("\\s+", " ", v), ")")]] <- log2_positive(combined_data[[v]])
+for (i in seq_along(log_vars)) {
+  combined_data[[log_names[i]]] <- log2_positive(combined_data[[log_vars[i]]])
 }
 
 # 3. Other variables
