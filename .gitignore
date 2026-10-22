@@ -1,1 +1,5 @@
-PiPS_mood/
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
