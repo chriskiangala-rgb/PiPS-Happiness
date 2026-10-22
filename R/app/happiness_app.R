@@ -46,6 +46,12 @@ happiness_app <- function(data, predictors,
         choicesOpt = menu(predictor_menu(predictor_groups))$options,
         options = list(`live-search` = TRUE, size = 10)
       ),
+      # A straight line, or a curve (natural spline) for a numeric predictor
+      # whose association bends; not with a moderator.
+      shiny::radioButtons(
+        "shape", "Shape", inline = TRUE,
+        choices = c("Straight line" = "line", "Curve" = "curve")
+      ),
       shinyWidgets::pickerInput(
         "moderator", "Moderator (optional)",
         choices = menu(moderator_choices(predictor_groups, default_predictor))$choices,
@@ -364,7 +370,8 @@ happiness_app <- function(data, predictors,
           data = analysed_data(), predictors = predictors,
           control_variables = controls,
           selected_continents = if (compares_continents) input$continents,
-          reference_continent = reference
+          reference_continent = reference,
+          shape = if (is.null(input$shape)) "line" else input$shape
         ),
         error = function(error) error
       )
@@ -411,8 +418,9 @@ happiness_app <- function(data, predictors,
     output$effect_title <- shiny::renderText(effect()$title)
     output$effect_value <- shiny::renderText(effect()$value)
     output$effect_detail <- shiny::renderText(effect()$detail)
-    # The effect without the moderator, or the example of a logged predictor.
-    output$effect_baseline <- shiny::renderText(c(effect()$baseline, effect()$example))
+    # The effect without the moderator, the curve against the line, and the
+    # example of a logged predictor or a curve.
+    output$effect_baseline <- shiny::renderText(paste(c(effect()$baseline, effect()$example), collapse = ". "))
 
     # Notes on the chosen variables ----
     output$variable_notes <- shiny::renderUI({
@@ -450,7 +458,8 @@ happiness_app <- function(data, predictors,
         shiny::p(class = "small text-muted mt-2 mb-0", plot_caption(usable_result(), " ")),
         if (!is.null(curve) && curve$misleading) {
           shiny::p(class = "small alert alert-warning mt-2 mb-0 py-2 px-3",
-                   describe_curvature(curve, usable_result()))
+                   describe_curvature(curve, usable_result()),
+                   "Choose Shape: Curve in the sidebar to fit a curve.")
         }
       )
     })

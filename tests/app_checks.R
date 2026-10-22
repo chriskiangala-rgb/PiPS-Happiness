@@ -151,6 +151,32 @@ stopifnot(
     is.null(curvature_test(analyse_happiness("continent")))
 )
 
+# Check the curve output
+
+curved <- analyse_happiness("Population: Labor force participation (%)", shape = "curve")
+curved_effect <- key_effect(curved, combined_data[["Country name"]][curved$model_rows])
+difference <- curve_difference(curved)
+straight <- analyse_happiness("Social support")
+line_difference <- curve_difference(straight)
+
+stopifnot(
+  "The tile should give the change from low to high for a curve" =
+    grepl("from a low to a high", curved_effect$title) &&
+    curved_effect$value == sprintf("%+.2f", difference$estimate),
+  "The tile should say what low and high are" =
+    grepl("^Low = 25th percentile: .*high = 75th", curved_effect$example),
+  "For a straight line, low to high is the slope times the distance" =
+    isTRUE(all.equal(line_difference$estimate,
+                     straight$primary_coefficients$estimate * (line_difference$high - line_difference$low))),
+  "The summary should compare the curve with the line" =
+    any(grepl("The curve explains .* a straight line", describe_result(curved))),
+  "A fitted curve gets no curve warning" = is.null(curvature_test(curved)),
+  "The plot should draw the curve" =
+    inherits(plot_happiness(curved), "ggplot") && grepl("natural spline", plot_caption(curved)),
+  "The spline columns should get readable names" =
+    all(grepl("\\(curve, part [1-3]\\)$", format_coefficients(curved)$Term[-1]))
+)
+
 # Check the app itself: change the inputs as a user would and read the outputs
 
 # Check the variable list and the effect per SD
@@ -239,6 +265,14 @@ withCallingHandlers(shiny::testServer(app, {
               grepl("^E.g. GDP per person", output$effect_baseline),
             "The tile should show the effect per SD" =
               grepl("^Per SD \\(1 SD = .* times more GDP per person\\)", output$effect_sd))
+
+  session$setInputs(shape = "curve")
+  stopifnot("The app should fit a curve" =
+              result()$shape == "curve" && grepl("(curve)", output$effect_title, fixed = TRUE))
+
+  session$setInputs(moderator = "continent")
+  stopifnot("A curve with a moderator should give a message" = analysis_failed())
+  session$setInputs(moderator = "", shape = "line")
 
   session$setInputs(continents = character(0))
   stopifnot("No continents selected should give a message" = analysis_failed())
