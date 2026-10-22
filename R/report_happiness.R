@@ -48,11 +48,15 @@ describe_result <- function(result) {
 
     if (is.numeric(result$model_data$primary)) {
       slope <- result$primary_coefficients
+      step <- ten_times(result$primary)
+      scale <- log_scale(result$primary)
       sentences <- c(sentences, sprintf(
-        "Countries with a one-unit higher %s have a %.2f points %s happiness score on average (95%% CI [%.2f, %.2f], p %s).",
-        result$primary, abs(slope$estimate),
+        "Countries with %s have a %.2f points %s happiness score on average (95%% CI [%.2f, %.2f], p %s).",
+        if (is.null(scale)) paste("a one-unit higher", result$primary) else paste("10 times more", scale$name),
+        abs(slope$estimate * step),
         if (slope$estimate >= 0) "higher" else "lower",
-        slope$ci_lower, slope$ci_upper, format_p(slope$p_value, with_sign = TRUE)
+        slope$ci_lower * step, slope$ci_upper * step,
+        format_p(slope$p_value, with_sign = TRUE)
       ))
     }
     sentences <- c(sentences, sprintf(
@@ -97,6 +101,9 @@ describe_result <- function(result) {
     })
   }
 
+  curve <- curvature_test(result)
+  if (!is.null(curve) && curve$misleading) sentences <- c(sentences, describe_curvature(curve, result))
+
   c(sentences, "These are country-level associations: they do not show causal effects or effects on individual people.")
 }
 
@@ -112,16 +119,26 @@ describe_result <- function(result) {
 #'   interaction terms (a categorical variable with more than two groups),
 #'   the clearest one is shown, Bonferroni-adjusted for picking it out.
 #'
+#' A logged predictor (see log_scale()) is shown per 10 times more instead
+#' of per log unit, with an example from two real countries.
+#'
 #' @param result The list returned by analyse_happiness().
+#' @param countries Optional country names in the order of the model
+#'   observations, for the example of a logged predictor.
 #'
 #' @return A list with a title, the value, a detail line (CI and p-value)
-#'   and, with a moderator, a baseline line with the effect without it.
-key_effect <- function(result) {
+#'   and, with a moderator, a baseline line with the effect without it. For
+#'   a logged predictor with countries given, also an example line.
+key_effect <- function(result, countries = NULL) {
   if (result$moderation) {
     terms <- result$interaction_coefficients
     n_terms <- nrow(terms)
     chosen <- terms[which.max(abs(terms$t_value)), ]
     critical_t <- stats::qt(1 - 0.05 / (2 * n_terms), stats::df.residual(result$model))
+    # Per 10 times more for a logged predictor or moderator (only numeric
+    # variables have a per-unit effect).
+    step <- interaction_step(result)
+    chosen[c("estimate", "std_error")] <- chosen[c("estimate", "std_error")] * step
     return(list(
       title = paste0(
         describe_interaction(chosen$term, result),
@@ -141,12 +158,14 @@ key_effect <- function(result) {
 
   if (is.numeric(result$model_data$primary)) {
     slope <- result$primary_coefficients
+    step <- ten_times(result$primary)
     return(list(
-      title = paste("Change in happiness per unit of", result$primary),
-      value = sprintf("%+.2f", slope$estimate),
+      title = paste("Change in happiness", per_step(result$primary)),
+      value = sprintf("%+.2f", slope$estimate * step),
       detail = sprintf("95%% CI [%.2f, %.2f], p %s",
-                       slope$ci_lower, slope$ci_upper,
-                       format_p(slope$p_value, with_sign = TRUE))
+                       slope$ci_lower * step, slope$ci_upper * step,
+                       format_p(slope$p_value, with_sign = TRUE)),
+      example = if (!is.null(countries)) log_example(result, countries)
     ))
   }
 
@@ -168,14 +187,17 @@ describe_interaction <- function(term, result) {
   group <- sub("^(primary|moderator)", "", parts[parts != "primary" & parts != "moderator"])
   primary_numeric <- is.numeric(result$model_data$primary)
   moderator_numeric <- is.numeric(result$model_data$moderator)
+  # "Social support", or "10 times more GDP per person" for a logged predictor.
+  scale <- log_scale(result$primary)
+  primary <- if (is.null(scale)) result$primary else paste("10 times more", scale$name)
   if (primary_numeric && moderator_numeric) {
-    sprintf("Change in the effect of %s per unit of %s", result$primary, result$moderator)
+    sprintf("Change in the effect of %s %s", primary, per_step(result$moderator))
   } else if (primary_numeric) {
     sprintf("Difference in the effect of %s: %s vs %s",
-            result$primary, group, result$reference_categories$moderator)
+            primary, group, result$reference_categories$moderator)
   } else if (moderator_numeric) {
-    sprintf("Change in the %s vs %s difference per unit of %s",
-            group, result$reference_categories$primary, result$moderator)
+    sprintf("Change in the %s vs %s difference %s",
+            group, result$reference_categories$primary, per_step(result$moderator))
   } else {
     paste("Interaction:", label_term(term, result$primary, result$moderator))
   }
@@ -190,10 +212,12 @@ effect_without_moderator <- function(result) {
     data = result$model_data
   )
   if (is.numeric(result$model_data$primary)) {
-    interval <- stats::confint(initial)["primary", ]
+    step <- ten_times(result$primary)
+    interval <- stats::confint(initial)["primary", ] * step
     return(sprintf(
-      "Without the moderator: %+.2f per unit of %s, 95%% CI [%.2f, %.2f]",
-      stats::coef(initial)[["primary"]], result$primary, interval[1], interval[2]
+      "Without the moderator: %+.2f %s, 95%% CI [%.2f, %.2f]",
+      stats::coef(initial)[["primary"]] * step, per_step(result$primary),
+      interval[1], interval[2]
     ))
   }
   largest <- largest_difference(initial, levels(result$model_data$primary))
@@ -293,8 +317,11 @@ country_profile <- function(country, result, data, analysed_data) {
     happiness[position], rank(-happiness, ties.method = "min")[position], n
   )
   sentences <- c(sentences, if (is.numeric(predictor)) {
+    # A logged predictor in its original units, e.g. GDP per person 19,600.
+    scale <- log_scale(result$primary)
     sprintf("%s %s: number %d of %d countries.",
-            result$primary, format(signif(predictor[position], 3), big.mark = ","),
+            if (is.null(scale)) result$primary else scale$name,
+            format_number(original_units(predictor[position], result$primary), 3),
             rank(-predictor, ties.method = "min")[position], n)
   } else {
     sprintf("%s: %s.", result$primary, predictor[position])
@@ -308,6 +335,157 @@ country_profile <- function(country, result, data, analysed_data) {
     "%.2f points %s than the model predicts.",
     abs(residual), if (residual >= 0) "happier" else "unhappier"
   ))
+}
+
+# Curved associations ----
+#' Test whether a straight line misleads about the association
+#'
+#' Adds the squared and cubed predictor (standardised first, so large
+#' variables stay computable) to the model and tests whether that improves
+#' the fit. The same rule as the assumption checks (local/for_tian.R, A3):
+#' the line misleads when the curve fits significantly better and either
+#' the line explains less than 80% of what the curve explains, or the curve
+#' goes the other way than the line over more than 10% of the predictor's
+#' range (5th to 95th percentile), i.e. the association goes up and down.
+#' For a logged predictor the curve is on the log scale, the scale of the
+#' model and the plot. With a moderator, the direction is judged from the
+#' predictor's own terms.
+#'
+#' @param result The list returned by analyse_happiness().
+#'
+#' @return NULL for a categorical predictor (or too few distinct values),
+#'   otherwise a list with the F-test (f_value, df_added, df_residual,
+#'   p_value), the variance explained by the line and by the curve, the
+#'   share of the range where the curve goes against the line, and
+#'   misleading (TRUE or FALSE).
+curvature_test <- function(result) {
+  model_data <- result$model_data
+  primary <- model_data$primary
+  if (!is.numeric(primary) || length(unique(primary)) < 5L) return(NULL)
+  centre <- mean(primary)
+  spread <- stats::sd(primary)
+  model_data$curve_squared <- ((primary - centre) / spread)^2
+  model_data$curve_cubed <- ((primary - centre) / spread)^3
+  curved <- stats::lm(
+    stats::update(stats::formula(result$model), . ~ . + curve_squared + curve_cubed),
+    data = model_data
+  )
+  if (anyNA(stats::coef(curved)) || stats::df.residual(curved) < 1L) return(NULL)
+  test <- stats::anova(result$model, curved)
+
+  # Direction of the curve along the predictor, from its own terms.
+  grid <- seq(stats::quantile(primary, 0.05), stats::quantile(primary, 0.95), length.out = 50)
+  z <- (grid - centre) / spread
+  coefficients <- stats::coef(curved)
+  steps <- diff(coefficients[["primary"]] * grid +
+                  coefficients[["curve_squared"]] * z^2 + coefficients[["curve_cubed"]] * z^3)
+  against <- mean(sign(steps) != sign(stats::coef(result$model)[["primary"]]))
+
+  r_squared_curve <- summary(curved)$r.squared
+  line_share <- if (r_squared_curve > 0.05) result$r_squared / r_squared_curve else NA
+  p_value <- test$`Pr(>F)`[2]
+  list(
+    f_value = test$F[2],
+    df_added = as.integer(test$Df[2]),
+    df_residual = as.integer(test$Res.Df[2]),
+    p_value = p_value,
+    r_squared_line = result$r_squared,
+    r_squared_curve = r_squared_curve,
+    against = against,
+    misleading = p_value < 0.05 && (is.na(line_share) || line_share < 0.8 || against > 0.1)
+  )
+}
+
+# One sentence that says the straight line misleads, with the test.
+describe_curvature <- function(curve, result) {
+  sprintf(
+    paste("The association with %s is curved%s: a curve explains %.0f%% of the differences in happiness instead of %.0f%%",
+          "(F(%d, %d) = %.2f, p %s), so the straight line misses part of it. Look at the plot and the residuals."),
+    result$primary, if (curve$against > 0.1) " and goes up and down" else "",
+    100 * curve$r_squared_curve, 100 * curve$r_squared_line,
+    curve$df_added, curve$df_residual, curve$f_value, format_p(curve$p_value, with_sign = TRUE)
+  )
+}
+
+# Logged predictors ----
+# A slope per log unit is hard to read ("+0.45 per unit of log2(GDP per
+# person)"). The model stays on the log scale; only what the reader sees is
+# translated: per 10 times more, in the original units.
+
+#' The log base and the original name of a logged variable
+#'
+#' "log2(...)" variables come from prepare_data.R; "Logged GDP per capita"
+#' is the natural log of GDP per capita in the World Happiness Report.
+#'
+#' @param variable A variable name.
+#'
+#' @return A list with the base and the name in original units, or NULL
+#'   when the variable is not logged.
+log_scale <- function(variable) {
+  if (identical(variable, "Logged GDP per capita")) {
+    return(list(base = exp(1), name = "GDP per capita"))
+  }
+  if (length(variable) == 1 && grepl("^log2\\(.*\\)$", variable)) {
+    return(list(base = 2, name = sub("^log2\\((.*)\\)$", "\\1", variable)))
+  }
+  NULL
+}
+
+# How many log units "10 times more" is. 1 for a variable that is not
+# logged, so multiplying a per-unit effect by it changes nothing.
+ten_times <- function(variable) {
+  scale <- log_scale(variable)
+  if (is.null(scale)) 1 else log(10, base = scale$base)
+}
+
+# "per unit of Social support", or "per 10 times more GDP per person".
+per_step <- function(variable) {
+  scale <- log_scale(variable)
+  if (is.null(scale)) paste("per unit of", variable) else paste("per 10 times more", scale$name)
+}
+
+# Values of a logged variable back in their original units.
+original_units <- function(values, variable) {
+  scale <- log_scale(variable)
+  if (is.null(scale)) values else scale$base^values
+}
+
+# The factor that turns an interaction coefficient into the step that
+# describe_interaction() names: per 10 times more for every logged numeric
+# variable in the interaction.
+interaction_step <- function(result) {
+  step <- 1
+  if (is.numeric(result$model_data$primary)) step <- step * ten_times(result$primary)
+  if (is.numeric(result$model_data$moderator)) step <- step * ten_times(result$moderator)
+  step
+}
+
+# An example of the slope of a logged predictor with two real countries:
+# the countries nearest the 25th and 75th percentile, e.g. "E.g. GDP per
+# person from 1,900 (India) to 19,600 (Chile): +1.52 points". NULL when the
+# predictor is not logged.
+log_example <- function(result, countries) {
+  scale <- log_scale(result$primary)
+  if (is.null(scale)) return(NULL)
+  values <- result$model_data$primary
+  low <- which.min(abs(values - stats::quantile(values, 0.25)))
+  high <- which.min(abs(values - stats::quantile(values, 0.75)))
+  slope <- result$primary_coefficients$estimate
+  sprintf(
+    "E.g. %s from %s (%s) to %s (%s): %+.2f points",
+    scale$name,
+    format_number(scale$base^values[low]), countries[low],
+    format_number(scale$base^values[high]), countries[high],
+    slope * (values[high] - values[low])
+  )
+}
+
+# Numbers rounded to a few significant digits, with thousands separators.
+# Formatted one by one, so 0.1 and 10 do not become "0.1" and "10.0".
+format_number <- function(values, digits = 2) {
+  vapply(values, function(value) {
+    format(signif(value, digits), big.mark = ",", scientific = FALSE, trim = TRUE)
+  }, character(1), USE.NAMES = FALSE)
 }
 
 # Helpers ----

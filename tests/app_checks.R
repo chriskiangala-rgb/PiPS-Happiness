@@ -103,9 +103,58 @@ stopifnot(
     inherits(try(morans_i(1:2, 1:2, 1:2), silent = TRUE), "try-error")
 )
 
+# Check logged predictors: shown per 10 times more, in original units
+
+logged <- analyse_happiness("log2(GDP per person)", control_variables = character(0))
+logged_effect <- key_effect(logged, combined_data[["Country name"]][logged$model_rows])
+slope <- logged$primary_coefficients$estimate
+
+stopifnot(
+  "log2 and the WHR's natural log should be recognised" =
+    log_scale("log2(GDP per person)")$base == 2 &&
+    log_scale("log2(GDP per person)")$name == "GDP per person" &&
+    log_scale("Logged GDP per capita")$base == exp(1),
+  "Other variables are not logged" = is.null(log_scale("Social support")),
+  "10 times more is log2(10) log2 units" = isTRUE(all.equal(ten_times("log2(CPI)"), log2(10))),
+  "The tile should give the effect per 10 times more" =
+    logged_effect$value == sprintf("%+.2f", slope * log2(10)) &&
+    grepl("per 10 times more GDP per person", logged_effect$title),
+  "The tile should give an example with two countries" =
+    grepl("^E.g. GDP per person from .* \\(.*\\) to .* \\(.*\\): [+-]", logged_effect$example),
+  "A predictor that is not logged has no example" =
+    is.null(key_effect(result, model_countries)$example),
+  "The summary should use the same wording" =
+    any(grepl("10 times more GDP per person", describe_result(logged))),
+  "The plot axis should be in original units" =
+    grepl("GDP per person (log scale)", plot_happiness(logged)$labels$x, fixed = TRUE),
+  "Axis ticks should be powers of 10 when the data span enough of them" =
+    identical(log_axis_breaks(log2(c(500, 120000)), 2), c(1e3, 1e4, 1e5)),
+  "Axis ticks should add 2 and 5 times when they do not" =
+    identical(log_axis_breaks(log2(c(90, 900)), 2), c(100, 200, 500)),
+  "Numbers should be formatted one by one" =
+    identical(format_number(c(0.1, 10, 19634)), c("0.1", "10", "20,000"))
+)
+
+# Check the test for curved associations
+
+set.seed(2)
+curved_data <- combined_data
+curved_data$wave <- sin(seq(0, 3 * pi, length.out = nrow(curved_data)))
+curved_data$happiness <- 5 + 2 * curved_data$wave^2 + rnorm(nrow(curved_data), sd = 0.2)
+curved_result <- analyse_happiness("wave", data = curved_data, predictors = "wave")
+
+stopifnot(
+  "A clearly curved association should be flagged" = curvature_test(curved_result)$misleading,
+  "The summary should mention the curve" =
+    any(grepl("is curved", describe_result(curved_result))),
+  "A categorical predictor gets no curve test" =
+    is.null(curvature_test(analyse_happiness("continent")))
+)
+
 # Check the app itself: change the inputs as a user would and read the outputs
 
-app <- happiness_app(combined_data, available_predictors, predictor_groups = groups)
+app <- happiness_app(combined_data, available_predictors, predictor_groups = groups,
+                     predictor_notes = predictor_notes)
 
 # Without a browser, thematic (the app's plot colours) cannot read the page
 # colours and warns; only those warnings are muffled.
@@ -128,7 +177,15 @@ withCallingHandlers(shiny::testServer(app, {
   stopifnot("One continent while comparing continents should give a message" =
               analysis_failed())
 
-  session$setInputs(moderator = "", continents = character(0))
+  session$setInputs(moderator = "", continents = all_continents, primary = "Minimum wage")
+  stopifnot("A variable with a note should show it" =
+              grepl("Minimum wage", output$variable_notes$html))
+
+  session$setInputs(primary = "log2(GDP per person)")
+  stopifnot("The tile should show the example for a logged predictor" =
+              grepl("^E.g. GDP per person", output$effect_baseline))
+
+  session$setInputs(continents = character(0))
   stopifnot("No continents selected should give a message" = analysis_failed())
 }), warning = muffle_thematic)
 thematic::thematic_off()
