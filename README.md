@@ -106,6 +106,27 @@ We checked the regression assumptions for **35 predictors**, each in the simple 
 - Christian used LLMs (UvA AI Chat and Claude) to help write and review code and to get feedback on the repository and README structure.
 
 ## 11. References
-* Elgiriyewithana, N. (2023). Global Country Information Dataset 2023. https://www.kaggle.com/. Retrieved October 22, 2026, from https://www.kaggle.com/datasets/nelgiriyewithana/countries-of-the-world-2023  
-* Long, J. S., & Ervin, L. H. (2000). Using heteroscedasticity consistent standard errors in the linear regression model. The American Statistician, 54(3), 217. https://doi.org/10.1080/00031305.2000.10474549  
-* Singh, A. (2023). World Happiness Report 2023. Retrieved October 16, 2026, from https://www.kaggle.com/datasets/ajaypalsinghlo/world-happiness-report-2023
+The same references, with citation keys, are in `references.bib`; `main.Rmd` cites them in APA style (`apa.csl`).
+
+* Allaire, J., Xie, Y., Dervieux, C., McPherson, J., Luraschi, J., Ushey, K., Atkins, A., Wickham, H., Cheng, J., Chang, W., & Iannone, R. (2026). *rmarkdown: Dynamic documents for R* (Version 2.32) \[Computer software\]. https://github.com/rstudio/rmarkdown  
+* Arel-Bundock, V., Enevoldsen, N., & Yetman, C. (2018). countrycode: An R package to convert country names and country codes. *Journal of Open Source Software*, *3*(28), 848. https://doi.org/10.21105/joss.00848  
+* Breusch, T. S., & Pagan, A. R. (1979). A simple test for heteroscedasticity and random coefficient variation. *Econometrica*, *47*(5), 1287–1294. https://doi.org/10.2307/1911963  
+* Chang, W., Cheng, J., Allaire, J., Sievert, C., Schloerke, B., Aden-Buie, G., Xie, Y., Allen, J., McPherson, J., Dipert, A., & Borges, B. (2026). *shiny: Web application framework for R* (Version 1.14.0) \[Computer software\]. https://doi.org/10.32614/CRAN.package.shiny  
+* Cook, R. D. (1977). Detection of influential observation in linear regression. *Technometrics*, *19*(1), 15–18. https://doi.org/10.1080/00401706.1977.10489493  
+* Elgiriyewithana, N. (2023). *Global Country Information Dataset 2023* \[Data set\]. Kaggle. https://www.kaggle.com/datasets/nelgiriyewithana/countries-of-the-world-2023  
+* Helliwell, J. F., Layard, R., Sachs, J. D., Aknin, L. B., De Neve, J.-E., & Wang, S. (Eds.). (2023). *World Happiness Report 2023* (11th ed.). Sustainable Development Solutions Network. https://worldhappiness.report/ed/2023/  
+* Lin, G. (2025). *reactable: Interactive data tables for R* (Version 0.4.5) \[Computer software\]. https://doi.org/10.32614/CRAN.package.reactable  
+* Long, J. S., & Ervin, L. H. (2000). Using heteroscedasticity consistent standard errors in the linear regression model. *The American Statistician*, *54*(3), 217–224. https://doi.org/10.1080/00031305.2000.10474549  
+* Moran, P. A. P. (1950). Notes on continuous stochastic phenomena. *Biometrika*, *37*(1/2), 17–23. https://doi.org/10.2307/2332142  
+* Perrier, V., Meyer, F., & Granjon, D. (2026). *shinyWidgets: Custom inputs widgets for shiny* (Version 0.9.1) \[Computer software\]. https://doi.org/10.32614/CRAN.package.shinyWidgets  
+* R Core Team. (2026). *R: A language and environment for statistical computing* (Version 4.6.1) \[Computer software\]. R Foundation for Statistical Computing. https://doi.org/10.32614/R.manuals  
+* Shapiro, S. S., & Wilk, M. B. (1965). An analysis of variance test for normality (complete samples). *Biometrika*, *52*(3/4), 591–611. https://doi.org/10.2307/2333709  
+* Sievert, C. (2020). *Interactive web-based data visualization with R, plotly, and shiny*. Chapman & Hall/CRC. https://plotly-r.com  
+* Sievert, C., Cheng, J., & Aden-Buie, G. (2026). *bslib: Custom Bootstrap Sass themes for shiny and rmarkdown* (Version 0.12.0) \[Computer software\]. https://doi.org/10.32614/CRAN.package.bslib  
+* Sievert, C., Schloerke, B., & Cheng, J. (2025). *thematic: Unified and automatic theming of ggplot2, lattice, and base R graphics* (Version 0.1.8) \[Computer software\]. https://doi.org/10.32614/CRAN.package.thematic  
+* Singh, A. (2023). *World Happiness Report 2023* \[Data set\]. Kaggle. https://www.kaggle.com/datasets/ajaypalsinghlo/world-happiness-report-2023  
+* Wickham, H. (2016). *ggplot2: Elegant graphics for data analysis*. Springer-Verlag New York. https://ggplot2.tidyverse.org  
+* Xie, Y. (2025). *knitr: A general-purpose package for dynamic report generation in R* (Version 1.51) \[Computer software\]. https://yihui.org/knitr/  
+* Zeileis, A. (2004). Econometric computing with HC and HAC covariance matrix estimators. *Journal of Statistical Software*, *11*(10), 1–17. https://doi.org/10.18637/jss.v011.i10  
+* Zeileis, A., & Hothorn, T. (2002). Diagnostic checking in regression relationships. *R News*, *2*(3), 7–10. https://CRAN.R-project.org/doc/Rnews/  
+* Zeileis, A., Köll, S., & Graham, N. (2020). Various versatile variances: An object-oriented implementation of clustered covariances in R. *Journal of Statistical Software*, *95*(1), 1–36. https://doi.org/10.18637/jss.v095.i01  
