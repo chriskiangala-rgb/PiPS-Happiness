@@ -298,7 +298,6 @@ predictor_coverage <- data.frame(
   n_total     = nrow(combined_data),
   row.names   = NULL
 )
-  
 predictor_notes <- c(
   "log2(CPI)" = paste(
     "Check whether countries with extreme CPI values strongly influence",
