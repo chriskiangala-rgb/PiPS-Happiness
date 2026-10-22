@@ -34,6 +34,14 @@ describe_result <- function(result) {
     "Based on %d countries (%d excluded because of missing data).",
     result$n_countries, result$n_excluded
   )
+  for (variable in names(result$excluded_groups)) {
+    groups <- result$excluded_groups[[variable]]
+    sentences <- c(sentences, sprintf(
+      "Left out: %s (%s of %s), because %s fewer than %d countries with data.",
+      paste(groups, collapse = ", "), if (length(groups) == 1) "a group" else "groups", variable,
+      if (length(groups) == 1) "it has" else "they have", result$min_group_size
+    ))
+  }
   controls <- result$control_variables
   if (length(controls) > 0) {
     sentences <- c(sentences, sprintf(
@@ -43,8 +51,12 @@ describe_result <- function(result) {
   }
 
   if (!result$moderation) {
-    model_test <- model_summary$fstatistic
-    model_p <- pf(model_test[1], model_test[2], model_test[3], lower.tail = FALSE)
+    # Test all variables together against a model without them, with the
+    # same covariance (HC3) as the coefficients.
+    intercept_only <- stats::lm(happiness ~ 1, data = result$model_data)
+    overall <- lmtest::waldtest(intercept_only, result$model, vcov = result$covariance, test = "F")
+    model_test <- c(overall$F[2], overall$Df[2], overall$Res.Df[2])
+    model_p <- overall$`Pr(>F)`[2]
 
     if (is.numeric(result$model_data$primary)) {
       slope <- result$primary_coefficients
@@ -74,7 +86,7 @@ describe_result <- function(result) {
         stats::reformulate(names(result$control_mapping), response = "happiness"),
         data = result$model_data
       )
-      added <- stats::anova(controls_only, result$model)
+      added <- lmtest::waldtest(controls_only, result$model, vcov = result$covariance, test = "F")
       sentences <- c(sentences, sprintf(
         "%s adds %.0f%% on top of the control variables (F(%d, %d) = %.2f, p %s).",
         result$primary, 100 * (result$r_squared - summary(controls_only)$r.squared),
@@ -103,6 +115,10 @@ describe_result <- function(result) {
 
   curve <- curvature_test(result)
   if (!is.null(curve) && curve$misleading) sentences <- c(sentences, describe_curvature(curve, result))
+
+  if (isTRUE(result$robust)) {
+    sentences <- c(sentences, "Standard errors, confidence intervals and p-values are robust (HC3): they do not assume that the spread around the line is the same for every country.")
+  }
 
   c(sentences, "These are country-level associations: they do not show causal effects or effects on individual people.")
 }
@@ -169,7 +185,7 @@ key_effect <- function(result, countries = NULL) {
     ))
   }
 
-  largest <- largest_difference(result$model, levels(result$model_data$primary))
+  largest <- largest_difference(result$model, levels(result$model_data$primary), result$covariance)
   list(
     title = "Largest difference in happiness between groups",
     value = sprintf("%+.2f", largest$estimate),
@@ -211,23 +227,24 @@ effect_without_moderator <- function(result) {
     stats::reformulate(c("primary", names(result$control_mapping)), response = "happiness"),
     data = result$model_data
   )
+  covariance <- model_covariance(initial, isTRUE(result$robust))
   if (is.numeric(result$model_data$primary)) {
     step <- ten_times(result$primary)
-    interval <- stats::confint(initial)["primary", ] * step
+    interval <- lmtest::coefci(initial, vcov. = covariance)["primary", ] * step
     return(sprintf(
       "Without the moderator: %+.2f %s, 95%% CI [%.2f, %.2f]",
       stats::coef(initial)[["primary"]] * step, per_step(result$primary),
       interval[1], interval[2]
     ))
   }
-  largest <- largest_difference(initial, levels(result$model_data$primary))
+  largest <- largest_difference(initial, levels(result$model_data$primary), covariance)
   sprintf("Without the moderator: largest group difference %+.2f (%s vs %s)",
           largest$estimate, largest$higher, largest$lower)
 }
 
 # The largest pairwise group difference, reported as higher vs lower group.
-largest_difference <- function(model, groups) {
-  differences <- group_differences(model, groups)
+largest_difference <- function(model, groups, covariance = stats::vcov(model)) {
+  differences <- group_differences(model, groups, covariance)
   largest <- differences[which.max(abs(differences$estimate)), ]
   if (largest$estimate < 0) {
     largest[c("higher", "lower")] <- largest[c("lower", "higher")]
@@ -248,11 +265,12 @@ largest_difference <- function(model, groups) {
 #'
 #' @param model The fitted lm model, with the predictor named "primary".
 #' @param groups The groups of the predictor; the first is the reference.
+#' @param covariance The covariance of the coefficients; result$covariance
+#'   (HC3) so the differences match the coefficient table.
 #'
 #' @return A data frame with one row per pair of groups.
-group_differences <- function(model, groups) {
+group_differences <- function(model, groups, covariance = stats::vcov(model)) {
   coefficients <- stats::coef(model)
-  covariance <- stats::vcov(model)
   pairs <- utils::combn(groups, 2)
   n_pairs <- ncol(pairs)
   critical_t <- stats::qt(1 - 0.05 / (2 * n_pairs), stats::df.residual(model))
@@ -295,6 +313,14 @@ country_profile <- function(country, result, data, analysed_data) {
   }
   rows <- result$model_rows
   analysed_countries <- analysed_data[["Country name"]][rows]
+  # Left out because its group (e.g. Oceania) has too few countries.
+  for (variable in names(result$excluded_groups)) {
+    group <- as.character(analysed_data[analysed_data[["Country name"]] == country, variable][[1]])
+    if (group %in% result$excluded_groups[[variable]]) {
+      return(sprintf("Not in this analysis: %s has fewer than %d countries with data.",
+                     group, result$min_group_size))
+    }
+  }
   if (!country %in% analysed_countries) {
     variables <- c("happiness", result$primary, result$moderator, result$control_variables)
     values <- analysed_data[analysed_data[["Country name"]] == country, variables]
@@ -342,7 +368,7 @@ country_profile <- function(country, result, data, analysed_data) {
 #'
 #' Adds the squared and cubed predictor (standardised first, so large
 #' variables stay computable) to the model and tests whether that improves
-#' the fit. The same rule as the assumption checks (local/for_tian.R, A3):
+#' the fit, with a Wald test (HC3 when the result is robust). The same rule as the assumption checks (local/for_tian.R, A3):
 #' the line misleads when the curve fits significantly better and either
 #' the line explains less than 80% of what the curve explains, or the curve
 #' goes the other way than the line over more than 10% of the predictor's
@@ -371,7 +397,11 @@ curvature_test <- function(result) {
     data = model_data
   )
   if (anyNA(stats::coef(curved)) || stats::df.residual(curved) < 1L) return(NULL)
-  test <- stats::anova(result$model, curved)
+  # Tested with the same kind of covariance as the model (HC3 when robust).
+  curve_covariance <- tryCatch(model_covariance(curved, isTRUE(result$robust)),
+                               error = function(error) NULL)
+  if (is.null(curve_covariance)) return(NULL)
+  test <- lmtest::waldtest(result$model, curved, vcov = curve_covariance, test = "F")
 
   # Direction of the curve along the predictor, from its own terms.
   grid <- seq(stats::quantile(primary, 0.05), stats::quantile(primary, 0.95), length.out = 50)

@@ -23,10 +23,7 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
   model_data <- result$model_data
   predictions <- build_prediction_grid(model_data, result$moderation,
                                        names(result$control_mapping))
-  predictions <- cbind(
-    predictions,
-    predict(result$model, newdata = predictions, interval = "confidence")
-  )
+  predictions <- cbind(predictions, predict_with_ci(result, predictions))
 
   primary_is_numeric <- is.numeric(model_data$primary)
   scale <- if (primary_is_numeric) log_scale(result$primary)
@@ -157,6 +154,21 @@ plot_caption <- function(result, line_break = "\n") {
     },
     "."
   )
+}
+
+# Model predictions with a 95% CI from the result's covariance (HC3 when
+# robust), so the bands agree with the coefficient table. predict() would
+# use the normal standard errors.
+predict_with_ci <- function(result, newdata) {
+  model <- result$model
+  predictors <- stats::delete.response(stats::terms(model))
+  frame <- stats::model.frame(predictors, newdata, xlev = model$xlevels)
+  design <- stats::model.matrix(predictors, frame, contrasts.arg = model$contrasts)
+  covariance <- if (is.null(result$covariance)) stats::vcov(model) else result$covariance
+  fit <- drop(design %*% stats::coef(model))
+  std_error <- sqrt(rowSums((design %*% covariance) * design))
+  critical_t <- stats::qt(0.975, stats::df.residual(model))
+  data.frame(fit = fit, lwr = fit - critical_t * std_error, upr = fit + critical_t * std_error)
 }
 
 # Axis ticks for a logged predictor, in original units: the powers of 10

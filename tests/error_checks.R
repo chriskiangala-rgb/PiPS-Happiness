@@ -250,4 +250,38 @@ stopifnot(
     grepl("No variation in continent", one_continent)
 )
 
+# Check the robust standard errors (HC3) and the small groups
+
+robust_result <- analyse_happiness("Social support", control_variables = "Logged GDP per capita")
+normal_result <- analyse_happiness("Social support", control_variables = "Logged GDP per capita",
+                                   robust = FALSE)
+oceania_reference <- try(
+  analyse_happiness("Social support", moderator = "continent", reference_continent = "Oceania"),
+  silent = TRUE
+)
+
+stopifnot(
+  "HC3 should not change the estimates" =
+    isTRUE(all.equal(robust_result$all_coefficients$estimate, normal_result$all_coefficients$estimate)),
+  "robust = FALSE should give the normal standard errors" =
+    isTRUE(all.equal(normal_result$all_coefficients$std_error,
+                     unname(summary(normal_result$model)$coefficients[, 2]))),
+  "Standard errors should be HC3" =
+    isTRUE(all.equal(robust_result$all_coefficients$std_error,
+                     unname(sqrt(diag(sandwich::vcovHC(robust_result$model, type = "HC3")))))),
+  "The covariance should be returned for the app" =
+    identical(dim(robust_result$covariance), rep(nrow(robust_result$all_coefficients), 2L)),
+  "Continent as moderator should leave out Oceania (2 countries)" =
+    identical(moderated$excluded_groups$continent, "Oceania") && moderated$n_small_groups == 2,
+  "model_rows should leave out the small group too" =
+    length(moderated$model_rows) == moderated$n_countries &&
+    !any(combined_data$continent[moderated$model_rows] == "Oceania"),
+  "With Oceania left out, every standard error should be a number" =
+    all(is.finite(moderated$all_coefficients$std_error)),
+  "A reference continent that is too small should give a clear error" =
+    inherits(oceania_reference, "try-error") && grepl("Oceania", oceania_reference),
+  "Without a categorical variable, no groups are left out" =
+    length(unadjusted$excluded_groups) == 0 && unadjusted$n_small_groups == 0
+)
+
 message("All error checks passed.")
