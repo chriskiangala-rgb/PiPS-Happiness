@@ -86,7 +86,7 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
 #' Explain the map in a few sentences
 #'
 #' Always says what grey means and that large countries dominate visually.
-#' For the residual layer it adds Moran's I: are neighbouring countries more
+#' For the residual layer it adds Moran's I: are nearby countries more
 #' alike than the model predicts? If so, the countries are not independent
 #' and the model's p-values are likely too small.
 #'
@@ -107,7 +107,7 @@ map_note <- function(result, data, layer) {
   c(
     "Blue countries are happier than the model predicts, red countries unhappier.",
     sprintf(
-      "Neighbouring countries %s (Moran's I = %.2f, p %s, %d countries).",
+      "Nearby countries %s (Moran's I = %.2f, p %s, %d countries).",
       if (clustering$p_value < 0.05) {
         "are more alike than the model predicts"
       } else {
@@ -124,9 +124,13 @@ map_note <- function(result, data, layer) {
 
 #' Moran's I: are nearby countries more alike than distant ones?
 #'
-#' Uses inverse great-circle distance between country centres as weights
-#' and the normal approximation for the p-value. The test is one-sided:
-#' it asks whether nearby countries are more alike, not less.
+#' Each country is compared with all other countries, weighted by inverse
+#' great-circle distance between country centres, so nearby countries
+#' weigh more. The weights of each country are scaled to add up to 1
+#' (row standardisation): every country has the same total weight, so
+#' densely packed regions such as Europe do not dominate the result.
+#' The p-value uses the normal approximation. The test is one-sided: it
+#' asks whether nearby countries are more alike, not less.
 #'
 #' @param values Numeric values per country, e.g. model residuals.
 #' @param latitude,longitude Country coordinates in degrees, same order.
@@ -149,6 +153,7 @@ morans_i <- function(values, latitude, longitude) {
   weights <- 1 / distance
   weights[!is.finite(weights)] <- 0  # the country itself, and shared centres
   diag(weights) <- 0
+  weights <- weights / rowSums(weights)
 
   deviation <- values - mean(values)
   s0 <- sum(weights)
