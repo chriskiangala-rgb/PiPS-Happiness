@@ -6,10 +6,11 @@
 #' numbers, an interactive plot (hover a point to see the country), a
 #' plain-language summary and the coefficient table of analyse_happiness().
 #'
-#' Parts marked PLANNED are not built yet. They describe what the app should
-#' do once the data, analysis and report functions support it; the commented
-#' code shows where each part goes. "Coming soon" boxes stand in for them, so
-#' the app keeps running in the meantime.
+#' Parts marked PLANNED are not built yet because they need something from
+#' another file; the tag names what they need, and the commented code
+#' shows where each part goes. Parts marked IDEA are undecided. All of these
+#' are built or removed before the pull request.
+#' "Coming soon" boxes keep the app running in the meantime.
 #'
 #' @param data The combined dataset (combined_data from prepare_data.R).
 #' @param predictors The variable names the user can choose from.
@@ -26,7 +27,8 @@ happiness_app <- function(data, predictors) {
       width = 320,
       bg = app_colours$sidebar,
 
-      # PLANNED: group the choices into "WHR factors", "Country facts" and
+      # PLANNED (needs a variable list in prepare_data.R):
+      # Group the choices into "WHR factors", "Country facts" and
       # "Categories", and show readable names with units, e.g.
       # "Tax revenue (% of GDP)". Both come from a variable list in
       # prepare_data.R (name, label, unit, group, transformation), so the
@@ -47,7 +49,8 @@ happiness_app <- function(data, predictors) {
         "and happiness differs between groups or levels of another variable."
       ),
 
-      # PLANNED: control variables, at most 3, never the predictor or the
+      # PLANNED (needs PR 8 merged):
+      # Control variables, at most 3, never the predictor or the
       # moderator. Needs the control_variables argument of
       # analyse_happiness() from PR 8.
       # shinyWidgets::pickerInput(
@@ -61,7 +64,8 @@ happiness_app <- function(data, predictors) {
       #   "association that remains between countries that are equal on them."
       # ),
 
-      # PLANNED: compare two continents. Only shown when continent is the
+      # PLANNED (needs PR 8 merged):
+      # Compare two continents. Only shown when continent is the
       # predictor or the moderator; empty means all continents. Needs the
       # reference_continent and comparison_continent arguments from PR 8.
       # shiny::conditionalPanel(
@@ -81,7 +85,8 @@ happiness_app <- function(data, predictors) {
       # leaving out the influential countries from the Model checks tab.
       # The tiles always show how many countries were left out, so
       # cherry-picking stays visible.
-      # PLANNED: once the two-continent comparison above exists, it only
+      # PLANNED (needs PR 8 merged):
+      # Once the two-continent comparison above exists, it only
       # needs the reference continent, since this filter picks the continents.
       shinyWidgets::pickerInput(
         "continents", "Continents",
@@ -115,7 +120,8 @@ happiness_app <- function(data, predictors) {
     bslib::layout_columns(
       fill = FALSE,
       col_widths = c(6, 3, 3),
-      # PLANNED: for a numeric predictor, show the change in happiness points
+      # PLANNED (needs standardized, robust results from analyse_happiness()):
+      # For a numeric predictor, show the change in happiness points
       # per 1 SD of the predictor with a robust (HC3) 95% CI, so effects of
       # different predictors can be compared. For a categorical predictor,
       # the largest group difference from the model with the controls.
@@ -127,7 +133,8 @@ happiness_app <- function(data, predictors) {
         showcase = bsicons::bs_icon("graph-up-arrow"),
         theme = tile_theme()
       ),
-      # PLANNED: with control variables, show the variance the predictor adds
+      # PLANNED (needs standardized, robust results from analyse_happiness()):
+      # With control variables, show the variance the predictor adds
       # on top of the controls (R-squared change) instead of the total.
       bslib::value_box(
         title = "Variance in happiness explained",
@@ -166,7 +173,8 @@ happiness_app <- function(data, predictors) {
       ),
       bslib::nav_panel(
         "Plot",
-        # PLANNED: option to add a curved (spline) line next to the straight
+        # IDEA (undecided):
+        # Option to add a curved (spline) line next to the straight
         # model line, to show whether the association bends.
         # shiny::checkboxInput("show_curve", "Also show a curved line", FALSE),
         plotly::plotlyOutput("plot", height = "460px")
@@ -231,7 +239,8 @@ happiness_app <- function(data, predictors) {
             "One row per country: every result describes countries, not individual people."
           )
         ),
-        # PLANNED: a table of every variable with its meaning, unit, source
+        # PLANNED (needs a variable list in prepare_data.R):
+        # A table of every variable with its meaning, unit, source
         # and transformation (log, per person), read from the variable list
         # in prepare_data.R.
         # reactable::reactableOutput("variable_table"),
@@ -242,14 +251,16 @@ happiness_app <- function(data, predictors) {
     # Explanation and coefficients ----
     bslib::layout_columns(
       col_widths = c(5, 7),
-      # PLANNED: describe the effect per 1 SD and name the control variables;
+      # PLANNED (needs standardized, robust results from analyse_happiness()):
+      # Describe the effect per 1 SD and name the control variables;
       # with controls, also compare the effect without and with them on the
       # same countries. Changes go in describe_result().
       bslib::card(
         bslib::card_header("What does this mean?"),
         shiny::uiOutput("summary")
       ),
-      # PLANNED: standardized and unstandardized estimates side by side,
+      # PLANNED (needs standardized, robust results from analyse_happiness()):
+      # Standardized and unstandardized estimates side by side,
       # robust CIs, and the real names of the control variables.
       # Changes go in format_coefficients().
       bslib::card(
@@ -270,7 +281,8 @@ happiness_app <- function(data, predictors) {
       )
     })
 
-    # PLANNED: keep the predictor and moderator out of the control menu.
+    # PLANNED (needs PR 8 merged):
+    # Keep the predictor and moderator out of the control menu.
     # shiny::observeEvent(list(input$primary, input$moderator), {
     #   taken <- c(input$primary, input$moderator)
     #   shinyWidgets::updatePickerInput(
@@ -291,7 +303,8 @@ happiness_app <- function(data, predictors) {
 
     # Some combinations cannot be estimated (e.g. too few countries);
     # keep analyse_happiness()'s error so it can be shown instead of a crash.
-    # PLANNED: also pass the PR 8 arguments:
+    # PLANNED (needs PR 8 merged):
+    # Also pass its arguments:
     #   control_variables = input$controls,
     #   reference_continent = input$reference_continent,
     #   comparison_continent = input$comparison_continent
@@ -329,7 +342,8 @@ happiness_app <- function(data, predictors) {
 
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
-    # PLANNED (in plot_happiness()): hold control variables at their mean or
+    # PLANNED (needs standardized, robust results from analyse_happiness()):
+    # In plot_happiness(), hold control variables at their mean or
     # reference group in the prediction lines, draw the bands from the
     # robust standard errors, keep the x-axis in the original units, and
     # add the curved line when input$show_curve is ticked.
@@ -410,7 +424,8 @@ happiness_app <- function(data, predictors) {
     })
 
     # About the data ----
-    # PLANNED: output$variable_table <- reactable::renderReactable(
+    # PLANNED (needs a variable list in prepare_data.R):
+    # output$variable_table <- reactable::renderReactable(
     #   reactable::reactable(variable_info)
     # )
   }
@@ -503,17 +518,20 @@ remove_empty_fonts <- function(settings) {
   lapply(settings, remove_empty_fonts)
 }
 
-# Planned helpers ----
-# Used by the PLANNED parts above; none of these exist yet.
+# What the PLANNED parts need from other files ----
+# None of these exist yet.
 #
-# In prepare_data.R:
+# From prepare_data.R:
 #   variable_info        Data frame: name, label, unit, group, source,
 #                        transformation. One row per available predictor.
 #   predictor_menu(variable_info, predictors)
 #                        Grouped, labelled choices for the pickers.
 #
-# In analyse_happiness.R (results stored in the list it returns):
+# From analyse_happiness.R (in the list it returns):
 #   z-scored numeric predictors (with their mean and SD in result$scaling),
 #   robust (HC3) standard errors, the robust interaction test, and the
 #   R-squared the predictor adds on top of the controls.
-
+#
+# From PR 8 (already open), in analyse_happiness.R:
+#   the control_variables, reference_continent and comparison_continent
+#   arguments.
