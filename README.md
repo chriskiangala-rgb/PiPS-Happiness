@@ -30,9 +30,7 @@ The app opens on a world map of happiness. The tiles at the top show the effect 
 With a moderator, the Plot tab shows a separate line per group. Here the effect of social support differs per continent, and the Netherlands is highlighted with its own profile above the plot.
 
 ![The app's Plot tab: happiness against social support with a line per continent and the Netherlands highlighted](images/app_plot.png)
-## 5. How to run it
->[!IMPORTANT]
->Run everything with this repository root as working directory.
+
 ## 5. How to run it
 
 ### Clone the repository
