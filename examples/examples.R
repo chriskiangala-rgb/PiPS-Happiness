@@ -77,6 +77,21 @@ asia_europe <- analyse_happiness(
 print(asia_europe$interaction_coefficients)
 print(asia_europe$interaction_test)
 
+# Example 5: a curve instead of a straight line ----
+# Question: does happiness rise and then fall with labour force
+# participation? A straight line finds almost nothing (R-squared near 0),
+# but the countries with a medium participation are the happiest.
+# shape = "curve" fits a natural spline that can bend. curve_test compares
+# it with the straight line; r_squared and line_r_squared show how much
+# each explains. The spline coefficients have no meaning on their own:
+# look at the plot (plot_happiness(curved)).
+curved <- analyse_happiness(
+  primary_predictor = "Population: Labor force participation (%)",
+  shape = "curve"
+)
+print(curved$curve_test)
+print(c(curve = curved$r_squared, line = curved$line_r_squared))
+
 # Interpretation of the results ----
 # No moderator: the primary coefficient is its unadjusted association.
 # With control variables: the primary coefficient is the association when
