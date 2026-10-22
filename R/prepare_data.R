@@ -241,9 +241,13 @@ numeric_predictors <- predictor_types$variable[
   predictor_types$type == "numeric"
 ]
 
-# Save the means and standard deviations used for scaling.
 predictor_scale <- data.frame(
   variable = numeric_predictors,
+  n = vapply(
+    numeric_predictors,
+    function(p) sum(!is.na(combined_data[[p]])),
+    integer(1)
+  ),
   mean = vapply(
     numeric_predictors,
     function(p) mean(combined_data[[p]], na.rm = TRUE),
@@ -256,6 +260,7 @@ predictor_scale <- data.frame(
   ),
   row.names = NULL
 )
+
 # Scaling requires finite values and a nonzero standard deviation.
 stopifnot(
   all(is.finite(predictor_scale$mean)),
@@ -267,16 +272,7 @@ stopifnot(
     logical(1)
   ))
 )
-# Create a modelling copy and standardize numeric predictors.
-scaled_data <- combined_data
 
-for (i in seq_along(numeric_predictors)) {
-  p <- numeric_predictors[i]
-
-  scaled_data[[p]] <- (
-    combined_data[[p]] - predictor_scale$mean[i]
-  ) / predictor_scale$sd[i]
-}
 # Validate analysis data ----
 
 stopifnot(
