@@ -30,9 +30,11 @@ The app opens on a world map of happiness. The tiles at the top show the effect 
 With a moderator, the Plot tab shows a separate line per group. Here the effect of social support differs per continent, and the Netherlands is highlighted with its own profile above the plot.
 
 ![The app's Plot tab: happiness against social support with a line per continent and the Netherlands highlighted](images/app_plot.png)
-## 5. How to use it
+## 5. How to run it
 >[!IMPORTANT]
 >Run everything with this repository root as working directory.
+### 1. Run source("install.R") in RStudio if it is your first time using the app
+### 2. Open [main.Rmd](main.Rmd), then run the setup chunk followed by the app chunk. 
 ## 6. Repository Structure
 
 ```
