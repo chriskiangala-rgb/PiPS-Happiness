@@ -40,7 +40,8 @@ check_assumptions <- function(
   key_predictors <- intersect(key_predictors, predictors)
   per_predictor <- do.call(rbind, lapply(predictors, check_predictor,
                                          data = data, predictors = predictors))
-  per_predictor$conclusion_changes <- (per_predictor$p_normal < alpha) != (per_predictor$p_hc3 < alpha)
+  per_predictor$conclusion_changes <-
+    (per_predictor$p_normal < alpha) != (per_predictor$p_hc3 < alpha)
   numeric <- per_predictor$type == "numeric"
 
   summary <- data.frame(
@@ -149,7 +150,8 @@ clustered_check <- function(predictor, data, predictors) {
     se_hc3 = sqrt(result$covariance["primary", "primary"]),
     se_clustered = se,
     clusters = nlevels(continents),
-    p_clustered = 2 * stats::pt(abs(estimate / se), df = nlevels(continents) - 1, lower.tail = FALSE)
+    p_clustered = 2 * stats::pt(abs(estimate / se), df = nlevels(continents) - 1,
+                                lower.tail = FALSE)
   )
 }
 

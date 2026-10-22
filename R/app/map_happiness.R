@@ -215,5 +215,9 @@ add_highlight <- function(map, code) {
 # Values for the hover text: numbers rounded to 3 significant digits with a
 # thousands separator, categories as they are.
 format_map_value <- function(values) {
-  if (is.numeric(values)) format(signif(values, 3), big.mark = ",", trim = TRUE) else as.character(values)
+  if (is.numeric(values)) {
+    format(signif(values, 3), big.mark = ",", trim = TRUE)
+  } else {
+    as.character(values)
+  }
 }
