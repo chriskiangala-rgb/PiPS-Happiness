@@ -118,6 +118,16 @@ map_note <- function(result, data, layer) {
   } else {
     "Grey countries are not in this analysis (no data)."
   }
+  # Groups left out because they are too small, e.g. Oceania.
+  for (variable in names(result$excluded_groups)) {
+    grey <- c(grey, sprintf(
+      "%s %s grey too: fewer than %d countries with data, too few for an estimate of %s own.",
+      paste(result$excluded_groups[[variable]], collapse = " and "),
+      if (length(result$excluded_groups[[variable]]) == 1) "is" else "are",
+      result$min_group_size,
+      if (length(result$excluded_groups[[variable]]) == 1) "its" else "their"
+    ))
+  }
   sentences <- c(
     grey,
     "Large countries stand out on a map, but every country counts once in the analysis."

@@ -49,10 +49,14 @@ print(controlled$all_coefficients)
 # (negative) the link is on that continent than in Africa.
 # interaction_test asks one overall question: does the link differ between
 # continents at all? A p_value below 0.05 says it does.
+# Oceania has only 2 countries with data, too few for a link of its own, so
+# it is left out (see excluded_groups). All standard errors, CIs and
+# p-values are robust (HC3); use robust = FALSE for the normal ones.
 moderated <- analyse_happiness(
   primary_predictor = "Social support",
   moderator = "continent"
 )
+print(moderated$excluded_groups)
 print(moderated$interaction_test)
 print(moderated$interaction_coefficients)
 print(moderated$all_coefficients)

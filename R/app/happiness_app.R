@@ -360,8 +360,13 @@ happiness_app <- function(data, predictors,
     output$n_countries <- shiny::renderText(usable_result()$n_countries)
     output$n_excluded <- shiny::renderText({
       left_out <- nrow(data) - nrow(analysed_data())
+      small <- usable_result()$n_small_groups
       paste0(
         sprintf("%d excluded for missing data", usable_result()$n_excluded),
+        if (isTRUE(small > 0)) {
+          sprintf(", %d in groups of fewer than %d (%s)", small, usable_result()$min_group_size,
+                  paste(unlist(usable_result()$excluded_groups), collapse = ", "))
+        },
         if (left_out > 0) sprintf(", %d on other continents", left_out)
       )
     })
