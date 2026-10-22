@@ -57,9 +57,7 @@ Run everything with the repo root as working directory.
 
 Run `source("install.R")` once; it installs any required package you do not have yet. The list of packages lives in `install.R`; add new packages there.
 
-## 7. Step-by-step Explanation
-
-## 8. Methods
+## 7. Methods
 
 We regress each country’s happiness—the **World Happiness Report 2023 ladder score**—on one predictor at a time, optionally including a moderator and control variables. The number of countries included depends on the variables selected and the available data.
 
@@ -88,15 +86,15 @@ We checked the regression assumptions for **35 predictors**, each in the simple 
 - **Measurement and missing data:** The country-level variables come from a Kaggle dataset combining several sources and years, without source information for each variable. Some variables have substantial missing data. For example, minimum-wage data are available for 113 of 137 countries. Missing data may affect which countries are represented and introduce selection bias.
 - **Exploratory analysis:** Testing many predictors and combinations increases the chance of statistically significant findings occurring by chance. Results should be treated as hypotheses for further testing rather than definitive conclusions.
   
-## 9. Student Roles
+## 8. Student Roles
 Diemithry (...)  
 Tian (...)  
 Christian was the project leader and was responsible for the README and the repository structure. He also created an error check file and reviewed code.
-## 10. AI statement
+## 9. AI statement
 Diemithry (...)  
 Tian (...)  
 Christian used LLMs (UvA AI Chat and Claude) to help write and review code and to get feedback on the repository and README structure. 
-## 11. References
+## 10. References
 Elgiriyewithana, N. (2023). Global Country Information Dataset 2023. https://www.kaggle.com/. Retrieved October 22, 2026, from https://www.kaggle.com/datasets/nelgiriyewithana/countries-of-the-world-2023  
 Long, J. S., & Ervin, L. H. (2000). Using heteroscedasticity consistent standard errors in the linear regression model. The American Statistician, 54(3), 217. https://doi.org/10.1080/00031305.2000.10474549  
 Singh, A. (2023). World Happiness Report 2023. Retrieved October 16, 2026, from https://www.kaggle.com/datasets/ajaypalsinghlo/world-happiness-report-2023
