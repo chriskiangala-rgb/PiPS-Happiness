@@ -49,7 +49,13 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
       z = values,
       text = hover,
       hovertemplate = "%{text}<extra></extra>",
-      colorscale = if (layer == "residual") diverging_scale else sequential_scale,
+      # Residuals: red (unhappier than predicted) - white - blue (happier).
+      # Other layers: light lavender to dark purple, matching the app.
+      colorscale = if (layer == "residual") {
+        list(c(0, "#B2182B"), c(0.5, "#F7F7F7"), c(1, "#2166AC"))
+      } else {
+        list(c(0, "#EDE5F7"), c(1, "#3D2766"))
+      },
       zmid = if (layer == "residual") 0,
       marker = list(line = list(color = "white", width = 0.5)),
       colorbar = list(title = list(text = paste(strwrap(title, 14), collapse = "<br>")), len = 0.7)
@@ -161,12 +167,6 @@ morans_i <- function(values, latitude, longitude) {
 }
 
 # Helpers ----
-
-# Light lavender to dark purple, matching the app.
-sequential_scale <- list(c(0, "#EDE5F7"), c(1, "#3D2766"))
-
-# Red (unhappier than predicted) - white - blue (happier).
-diverging_scale <- list(c(0, "#B2182B"), c(0.5, "#F7F7F7"), c(1, "#2166AC"))
 
 # Three-letter country codes, which plotly uses to find each country.
 # Uses the iso3 column when prepare_data.R provides one.

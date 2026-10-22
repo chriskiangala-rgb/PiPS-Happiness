@@ -33,7 +33,7 @@ happiness_app <- function(data, predictors,
     fillable = FALSE,
     sidebar = bslib::sidebar(
       width = 320,
-      bg = app_colours$sidebar,
+      bg = app_colours()$sidebar,
 
       # PLANNED (needs a variable list in prepare_data.R):
       # Show readable names with units, e.g. "Tax revenue (% of GDP)",
@@ -397,7 +397,7 @@ happiness_app <- function(data, predictors,
       # colour-blind friendly palette so they stay easy to tell apart.
       if (!result()$moderation) {
         plot <- plot + ggplot2::scale_colour_manual(
-          values = app_colours$primary, aesthetics = c("colour", "fill")
+          values = app_colours()$primary, aesthetics = c("colour", "fill")
         )
       }
       interactive_plot(plot)
@@ -433,7 +433,7 @@ happiness_app <- function(data, predictors,
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
       map <- map_happiness(result(), analysed_data(), layer = input$map_layer,
                            highlight = input$highlight_country)
-      map <- plotly::layout(map, font = list(family = paste(app_fonts, collapse = ", ")))
+      map <- plotly::layout(map, font = list(family = paste(app_fonts(), collapse = ", ")))
       # Without scrollZoom = FALSE, scrolling the page over the map zooms it.
       plotly::config(map, displaylogo = FALSE, scrollZoom = FALSE)
     })
@@ -473,7 +473,7 @@ happiness_app <- function(data, predictors,
   }
 
   # plotly plots do not pick up the theme colours by themselves.
-  thematic::thematic_shiny(accent = app_colours$primary)
+  thematic::thematic_shiny(accent = app_colours()$primary)
   shiny::shinyApp(ui, server)
 }
 
@@ -538,24 +538,28 @@ coming_soon <- function(...) {
 }
 
 # The font of the app and the plot: the computer's own system font.
-app_fonts <- c("system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif")
+app_fonts <- function() {
+  c("system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif")
+}
 
 # The colours of the app.
-app_colours <- list(
-  title_bar = "#7E5BB5",  # lilac purple
-  primary = "#6B46A8",    # buttons, links and the model line in the plot
-  sidebar = "#F4EFFA",    # very light lavender
-  tile = "#EDE5F7",       # light lavender
-  tile_text = "#3D2766"   # dark purple
-)
+app_colours <- function() {
+  list(
+    title_bar = "#7E5BB5",  # lilac purple
+    primary = "#6B46A8",    # buttons, links and the model line in the plot
+    sidebar = "#F4EFFA",    # very light lavender
+    tile = "#EDE5F7",       # light lavender
+    tile_text = "#3D2766"   # dark purple
+  )
+}
 
 # The theme of the app (Bootstrap 5 via bslib).
 app_theme <- function() {
   theme <- bslib::bs_theme(
     version = 5,
-    primary = app_colours$primary,
-    "navbar-bg" = app_colours$title_bar,
-    base_font = do.call(bslib::font_collection, as.list(app_fonts))
+    primary = app_colours()$primary,
+    "navbar-bg" = app_colours()$title_bar,
+    base_font = do.call(bslib::font_collection, as.list(app_fonts()))
   )
   # Space and a soft purple shadow between the blocks of the page; the
   # profile card sits inside its output placeholder, so it gets its own rule. The number tiles get less
@@ -578,7 +582,7 @@ app_theme <- function() {
 
 # The colours of the number tiles at the top.
 tile_theme <- function() {
-  bslib::value_box_theme(bg = app_colours$tile, fg = app_colours$tile_text)
+  bslib::value_box_theme(bg = app_colours()$tile, fg = app_colours()$tile_text)
 }
 
 # Turn the ggplot into a plotly plot that shows the country on hover.
@@ -603,7 +607,7 @@ interactive_plot <- function(plot) {
   # ggplotly gives every text element ggplot's empty font name (''), which
   # browsers show as a serif font. Remove it so the app's font is used.
   interactive$x$layout <- remove_empty_fonts(interactive$x$layout)
-  interactive <- plotly::layout(interactive, font = list(family = paste(app_fonts, collapse = ", ")))
+  interactive <- plotly::layout(interactive, font = list(family = paste(app_fonts(), collapse = ", ")))
   plotly::config(interactive, displaylogo = FALSE)
 }
 
