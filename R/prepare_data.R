@@ -93,8 +93,8 @@ for (column in numeric_columns) {
 # Zero or negative values become NA.
 
 log2_positive <- function(x) {
-x[!is.na(x) & x <= 0] <- NA
- log2(x)
+  x[!is.na(x) & x <= 0] <- NA
+  log2(x)
 }
 # 1. Totals -> comparable measures
 combined_data[["GDP per person"]] <- combined_data$GDP / combined_data$Population
