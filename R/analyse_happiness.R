@@ -13,6 +13,11 @@
 #   countries are left out, because they cannot get a reliable estimate of
 #   their own (with HC3, a group of 2 makes every standard error unknown).
 #   The result lists them in excluded_groups.
+# shape: "line" (a straight line) or "curve": a natural spline with 3
+#   degrees of freedom for a numeric predictor, which can bend where the
+#   data bend. Not combined with a moderator: a curve per group needs too
+#   many coefficients for groups of about ten countries. The result then
+#   also compares the curve with the straight line (curve_test).
 
 analyse_happiness <- function(
     primary_predictor,
@@ -23,8 +28,10 @@ analyse_happiness <- function(
     control_variables = character(0),
     selected_continents = NULL,
     robust = TRUE,
-    min_group_size = 5
+    min_group_size = 5,
+    shape = c("line", "curve")
 ) {
+  shape <- match.arg(shape)
   # Validate selected predictors and outcome ----
   
   if (length(primary_predictor) != 1L || is.na(primary_predictor) ||
@@ -45,6 +52,9 @@ analyse_happiness <- function(
   if (!is.numeric(min_group_size) || length(min_group_size) != 1L ||
       is.na(min_group_size) || min_group_size < 1) {
     stop("min_group_size must be a single number of at least 1.")
+  }
+  if (shape == "curve" && moderator != "") {
+    stop("A curve cannot be combined with a moderator: choose a straight line or no moderator.")
   }
   
   # Validate optional control variables, variable should not also be the predictor or moderator 
@@ -216,11 +226,22 @@ analyse_happiness <- function(
   if (length(unique(model_data$happiness)) < 2L) {
     stop("Happiness has no variation among the available countries.")
   }
+  if (shape == "curve" && (!is.numeric(model_data$primary) ||
+                           length(unique(model_data$primary)) < 5L)) {
+    stop(paste("A curve needs a numeric predictor with at least 5 different values;",
+               real_names[["primary"]], "is not one."))
+  }
   
   # Fit the regression model and check estimability ----
   
   # * includes both main effects AND their interaction.
-  main_terms <- if (moderator == "") {
+  # A curve is a natural spline of the predictor. ns() is found through
+  # this function's environment (the formula's), also when the model
+  # predicts new values later.
+  ns <- splines::ns
+  main_terms <- if (shape == "curve") {
+    "ns(primary, df = 3)"
+  } else if (moderator == "") {
     "primary"
   } else {
     "primary * moderator"
@@ -264,7 +285,8 @@ analyse_happiness <- function(
   # Decide this on the internal names, before the real control names are put
   # back: a real name can contain a colon or start with "primary".
   is_interaction <- grepl(":", coefficient_table$term, fixed = TRUE)
-  is_primary <- startsWith(coefficient_table$term, "primary") & !is_interaction
+  is_primary <- (startsWith(coefficient_table$term, "primary") |
+                   startsWith(coefficient_table$term, "ns(primary")) & !is_interaction
 
   # Show the real names of the control variables instead of control1, control2, ...
   # Map each coefficient to its formula term instead of guessing from its name.
@@ -320,6 +342,20 @@ analyse_happiness <- function(
     )
   }
   
+  # Compare the curve with the straight line ----
+
+  # Both on the same countries and with the same controls; the Wald test
+  # uses the curve's covariance (HC3 when robust). R squared of the line
+  # for the comparison in the summary.
+  curve_test <- NULL
+  line_r_squared <- NULL
+  if (shape == "curve") {
+    line_model <- lm(reformulate(c("primary", control_names), response = "happiness"),
+                     data = model_data)
+    curve_test <- curve_wald_test(model, covariance, model_data$primary)
+    line_r_squared <- summary(line_model)$r.squared
+  }
+
   # Identify reference categories and return analysis results ----
   
   reference_categories <- lapply(
@@ -344,6 +380,9 @@ analyse_happiness <- function(
     all_coefficients = coefficient_table,
     reference_categories = reference_categories,
     r_squared = model_summary$r.squared,
+    shape = shape,
+    curve_test = curve_test,
+    line_r_squared = line_r_squared,
     robust = robust,
     covariance = covariance,
     model = model,
@@ -362,4 +401,29 @@ model_covariance <- function(model, robust = TRUE) {
     stop("Robust standard errors cannot be computed: a country has a coefficient of its own. Choose fewer groups or variables.")
   }
   covariance
+}
+
+# Wald test of a curve against the straight line. The line is a special
+# case of the natural spline (the spline can draw any straight line), but
+# not by name, so lmtest::waldtest() cannot see that the models are nested.
+# The predictor is an exact combination a of the spline columns (plus the
+# intercept); the line is the curve whose spline coefficients are a
+# multiple of a. The test asks whether the spline coefficients differ from
+# that, in the df - 1 directions orthogonal to a.
+curve_wald_test <- function(model, covariance, primary) {
+  design <- stats::model.matrix(model)
+  spline_columns <- grep("^ns\\(primary", colnames(design))
+  a <- stats::lm.fit(cbind(1, design[, spline_columns, drop = FALSE]), primary)$coefficients[-1]
+  directions <- qr.Q(qr(matrix(a)), complete = TRUE)[, -1, drop = FALSE]
+  restrictions <- matrix(0, ncol(directions), ncol(design))
+  restrictions[, spline_columns] <- t(directions)
+  difference <- restrictions %*% stats::coef(model)
+  wald <- drop(t(difference) %*% solve(restrictions %*% covariance %*% t(restrictions)) %*% difference)
+  df_added <- nrow(restrictions)
+  f_value <- wald / df_added
+  data.frame(
+    df_added = df_added,
+    f_value = f_value,
+    p_value = stats::pf(f_value, df_added, stats::df.residual(model), lower.tail = FALSE)
+  )
 }

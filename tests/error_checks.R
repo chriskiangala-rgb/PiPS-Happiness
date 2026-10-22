@@ -284,4 +284,33 @@ stopifnot(
     length(unadjusted$excluded_groups) == 0 && unadjusted$n_small_groups == 0
 )
 
+# Check the curve (natural spline)
+
+labour <- "Population: Labor force participation (%)"
+curve_result <- analyse_happiness(labour, shape = "curve")
+curve_normal <- analyse_happiness(labour, shape = "curve", robust = FALSE,
+                                  control_variables = "log2(GDP per person)")
+line_normal <- analyse_happiness(labour, robust = FALSE, control_variables = "log2(GDP per person)")
+classic_test <- anova(line_normal$model, curve_normal$model)
+curve_with_moderator <- try(analyse_happiness(labour, "continent", shape = "curve"), silent = TRUE)
+curve_categorical <- try(analyse_happiness("continent", shape = "curve"), silent = TRUE)
+
+stopifnot(
+  "The curve should be a natural spline with 3 degrees of freedom" =
+    nrow(curve_result$primary_coefficients) == 3 &&
+    isTRUE(all.equal(curve_result$r_squared, summary(stats::lm(
+      happiness ~ splines::ns(primary, df = 3), data = curve_result$model_data))$r.squared)),
+  "The curve should fit at least as well as the line" =
+    curve_result$r_squared >= curve_result$line_r_squared,
+  "Without HC3 the curve test should equal the classic F-test" =
+    isTRUE(all.equal(curve_normal$curve_test$f_value, classic_test$F[2])) &&
+    isTRUE(all.equal(curve_normal$curve_test$p_value, classic_test$`Pr(>F)`[2])),
+  "Labour force participation should clearly bend" = curve_result$curve_test$p_value < 0.001,
+  "A curve with a moderator should give a clear error" =
+    inherits(curve_with_moderator, "try-error") && grepl("moderator", curve_with_moderator),
+  "A curve needs a numeric predictor" =
+    inherits(curve_categorical, "try-error") && grepl("numeric", curve_categorical),
+  "A straight line is the default" = unadjusted$shape == "line" && is.null(unadjusted$curve_test)
+)
+
 message("All error checks passed.")

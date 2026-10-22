@@ -147,7 +147,9 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
 # caption of a ggplot.
 plot_caption <- function(result, line_break = "\n") {
   paste0(
-    result$n_countries, " countries. Lines and bands: model predictions with 95% CI",
+    result$n_countries, " countries. ",
+    if (identical(result$shape, "curve")) "Curve (natural spline)" else "Lines",
+    " and bands: model predictions with 95% CI",
     if (length(result$control_variables) > 0) {
       paste0(",", line_break, "with ", paste(display_name(result, result$control_variables), collapse = ", "),
              " held at the mean or reference group")
@@ -189,7 +191,12 @@ log_axis_breaks <- function(log_range, base) {
 # Build the values at which the model's predictions are plotted ----
 
 build_prediction_grid <- function(model_data, moderation, controls = character(0)) {
-  grid <- prediction_values(model_data, moderation)
+  hold_controls(prediction_values(model_data, moderation), model_data, controls)
+}
+
+# Add the control variables to a grid of values to predict at, held at
+# their mean (numeric) or reference group (categorical).
+hold_controls <- function(grid, model_data, controls = character(0)) {
   for (control in controls) {
     values <- model_data[[control]]
     held_at <- if (is.numeric(values)) {
