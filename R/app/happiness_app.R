@@ -12,10 +12,14 @@
 #' @param predictor_groups Optional named list that splits predictors into
 #'   groups for the menus, e.g. by data source. Every predictor must be in
 #'   exactly one group. By default: numeric variables and categories.
+#' @param predictor_notes Optional named character vector with a caution per
+#'   variable (predictor_notes from prepare_data.R). The note is shown when
+#'   that variable is chosen as predictor, moderator or control.
 #'
 #' @return A Shiny app object; start it with shiny::runApp().
 happiness_app <- function(data, predictors,
-                          predictor_groups = group_by_type(data, predictors)) {
+                          predictor_groups = group_by_type(data, predictors),
+                          predictor_notes = NULL) {
   if (!setequal(unlist(predictor_groups), predictors) ||
       anyDuplicated(unlist(predictor_groups))) {
     stop("predictor_groups must contain every predictor exactly once.")
@@ -59,6 +63,8 @@ happiness_app <- function(data, predictors,
         "Control variables are held constant: the effect shown is the",
         "association that remains between countries that are equal on them."
       ),
+      # Cautions about the chosen variables, e.g. much missing data.
+      shiny::uiOutput("variable_notes"),
 
       # Choose which continents are analysed, to check whether a result
       # holds in one part of the world. Single countries cannot be left out:
@@ -362,11 +368,25 @@ happiness_app <- function(data, predictors,
     output$r_squared <- shiny::renderText(
       sprintf("%.0f%%", 100 * usable_result()$r_squared)
     )
-    effect <- shiny::reactive(key_effect(usable_result()))
+    effect <- shiny::reactive(key_effect(usable_result(), model_countries()))
     output$effect_title <- shiny::renderText(effect()$title)
     output$effect_value <- shiny::renderText(effect()$value)
     output$effect_detail <- shiny::renderText(effect()$detail)
-    output$effect_baseline <- shiny::renderText(effect()$baseline)
+    # The effect without the moderator, or the example of a logged predictor.
+    output$effect_baseline <- shiny::renderText(c(effect()$baseline, effect()$example))
+
+    # Notes on the chosen variables ----
+    output$variable_notes <- shiny::renderUI({
+      chosen <- unique(c(input$primary, input$moderator, input$controls))
+      chosen <- chosen[chosen %in% names(predictor_notes)]
+      if (length(chosen) == 0) return(NULL)
+      shiny::div(
+        class = "small alert alert-warning py-2 px-3",
+        lapply(chosen, function(variable) {
+          shiny::p(class = "mb-1", shiny::tags$b(paste0(variable, ":")), predictor_notes[[variable]])
+        })
+      )
+    })
 
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
@@ -383,9 +403,18 @@ happiness_app <- function(data, predictors,
       }
       interactive_plot(plot)
     })
-    output$plot_note <- shiny::renderUI(
-      shiny::p(class = "small text-muted mt-2 mb-0", plot_caption(usable_result(), " "))
-    )
+    # Below the plot: what it shows, and a warning when a curve fits
+    # clearly better than the straight line.
+    output$plot_note <- shiny::renderUI({
+      curve <- curvature_test(usable_result())
+      shiny::tagList(
+        shiny::p(class = "small text-muted mt-2 mb-0", plot_caption(usable_result(), " ")),
+        if (!is.null(curve) && curve$misleading) {
+          shiny::p(class = "small alert alert-warning mt-2 mb-0 py-2 px-3",
+                   describe_curvature(curve, usable_result()))
+        }
+      )
+    })
     output$summary <- shiny::renderUI(
       shiny::tags$ul(lapply(describe_result(usable_result()), shiny::tags$li))
     )
