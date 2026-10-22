@@ -44,7 +44,8 @@ describe_result <- function(result, sd = NULL) {
     groups <- result$excluded_groups[[variable]]
     sentences <- c(sentences, sprintf(
       "Left out: %s (%s of %s), because %s fewer than %d countries with data.",
-      paste(groups, collapse = ", "), if (length(groups) == 1) "a group" else "groups", variable,
+      paste(groups, collapse = ", "), if (length(groups) == 1) "a group" else "groups",
+      tolower(display_name(result, variable)),
       if (length(groups) == 1) "it has" else "they have", result$min_group_size
     ))
   }
