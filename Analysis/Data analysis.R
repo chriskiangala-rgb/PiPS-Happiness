@@ -337,15 +337,15 @@ analyse_happiness <- function(
       stop(paste("No variation in", column, "among the available countries."))
     }
     if (is.factor(model_data[[column]])) {
-      # Set the reference on whichever column represents continent (primary predictor or moderator).
-        #If continent is the primary predictor, it applies the reference to model_data$primary
-        #If continent is the moderator, it applies the reference to model_data$moderator.
-      if (!is.null(selected_continents) &&
+      # Set the reference on the column that holds continent: the
+      # primary predictor or the moderator.
+      if (reference_continent != "" &&
           ((column == "primary" && primary_predictor == "continent") ||
            (column == "moderator" && moderator == "continent"))) {
         
         if (!all(
-          selected_continents %in% levels(model_data[[column]])
+          c(reference_continent, selected_continents) %in%
+            levels(model_data[[column]])
         )) {
           stop("Every selected continent needs usable data for this model.")
         }
