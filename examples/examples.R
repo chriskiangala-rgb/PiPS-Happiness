@@ -7,7 +7,7 @@
 # along without knowing R. Predictor names must be written exactly as in the
 # list printed first.
 source("R/prepare_data.R")
-source("R/analyse_happiness.R")
+source("R/analysis/analyse_happiness.R")
 
 # Available predictors and the number of countries per continent
 print(predictor_types, row.names = FALSE)

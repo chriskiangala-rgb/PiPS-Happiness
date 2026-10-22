@@ -1,6 +1,8 @@
 # Run from the project root: source("tests/error_checks.R")
 source("R/prepare_data.R")
-source("R/analyse_happiness.R")
+# The analysis functions: analyse_happiness(), check_assumptions() and
+# the helpers they use.
+for (file in list.files("R/analysis", full.names = TRUE)) source(file)
 
 #Error checks for the happiness data analysis
 
@@ -311,6 +313,35 @@ stopifnot(
   "A curve needs a numeric predictor" =
     inherits(curve_categorical, "try-error") && grepl("numeric", curve_categorical),
   "A straight line is the default" = unadjusted$shape == "line" && is.null(unadjusted$curve_test)
+)
+
+# Check the assumption checks ----
+
+checks <- check_assumptions()
+per_predictor <- checks$per_predictor
+row_of <- function(predictor) per_predictor[per_predictor$predictor == predictor, ]
+social_support <- analyse_happiness("Social support")
+social_support_line <- summary(social_support$model)$coefficients
+
+stopifnot(
+  "There should be one row per predictor" =
+    nrow(per_predictor) == length(available_predictors) &&
+    setequal(per_predictor$predictor, available_predictors),
+  "The HC3 p-value should equal the one of analyse_happiness()" =
+    isTRUE(all.equal(row_of("Social support")$p_hc3, social_support$primary_coefficients$p_value)),
+  "The normal p-value should equal the one of lm()" =
+    isTRUE(all.equal(row_of("Social support")$p_normal, social_support_line["primary", "Pr(>|t|)"])),
+  "Only numeric predictors get a curve check" =
+    all(is.na(per_predictor$curve_p[per_predictor$type == "categorical"])),
+  "Labour force participation should be flagged as misleading as a line" =
+    isTRUE(row_of("Population: Labor force participation (%)")$line_misleading),
+  "Freedom should not be flagged" =
+    isFALSE(row_of("Freedom to make life choices")$line_misleading),
+  "The summary counts should fit within their totals" =
+    all(checks$summary$predictors <= checks$summary$out_of),
+  "Continent as control should reduce Moran's I" =
+    all(checks$spatial$i_with_continent < checks$spatial$i_alone),
+  "Clustering should use the 6 continents" = all(checks$clustered$clusters == 6)
 )
 
 message("All error checks passed.")

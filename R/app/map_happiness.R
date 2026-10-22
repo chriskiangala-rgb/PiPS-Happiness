@@ -161,55 +161,6 @@ map_note <- function(result, data, layer) {
   )
 }
 
-#' Moran's I: are nearby countries more alike than distant ones?
-#'
-#' Each country is compared with all other countries, weighted by inverse
-#' great-circle distance between country centres, so nearby countries
-#' weigh more. The weights of each country are scaled to add up to 1
-#' (row standardisation): every country has the same total weight, so
-#' densely packed regions such as Europe do not dominate the result.
-#' The p-value uses the normal approximation. The test is one-sided: it
-#' asks whether nearby countries are more alike, not less.
-#'
-#' @param values Numeric values per country, e.g. model residuals.
-#' @param latitude,longitude Country coordinates in degrees, same order.
-#'
-#' @return A list with the statistic, the one-sided p-value and the number
-#'   of countries with coordinates.
-morans_i <- function(values, latitude, longitude) {
-  usable <- is.finite(values) & is.finite(latitude) & is.finite(longitude)
-  values <- values[usable]
-  n <- length(values)
-  if (n < 3L) stop("Moran's I needs at least 3 countries with coordinates.")
-
-  latitude <- latitude[usable] * pi / 180
-  longitude <- longitude[usable] * pi / 180
-  # Distance along the earth's surface, in km. pmin guards against
-  # rounding just above 1, which acos() cannot take.
-  cosine <- outer(sin(latitude), sin(latitude)) +
-    outer(cos(latitude), cos(latitude)) * cos(outer(longitude, longitude, "-"))
-  distance <- 6371 * acos(pmin(cosine, 1))
-  weights <- 1 / distance
-  weights[!is.finite(weights)] <- 0  # the country itself, and shared centres
-  diag(weights) <- 0
-  weights <- weights / rowSums(weights)
-
-  deviation <- values - mean(values)
-  s0 <- sum(weights)
-  statistic <- n / s0 * sum(weights * outer(deviation, deviation)) / sum(deviation^2)
-
-  s1 <- sum((weights + t(weights))^2) / 2
-  s2 <- sum((rowSums(weights) + colSums(weights))^2)
-  expected <- -1 / (n - 1)
-  variance <- (n^2 * s1 - n * s2 + 3 * s0^2) / ((n^2 - 1) * s0^2) - expected^2
-
-  list(
-    statistic = statistic,
-    p_value = stats::pnorm((statistic - expected) / sqrt(variance), lower.tail = FALSE),
-    n = n
-  )
-}
-
 # Helpers ----
 
 # Three-letter country codes, which plotly uses to find each country.
