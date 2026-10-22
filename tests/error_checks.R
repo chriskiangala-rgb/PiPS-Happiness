@@ -182,4 +182,50 @@ bad_input <- try(analyse_happiness("Not a variable"), silent = TRUE)
 
 stopifnot("Invalid predictor should cause an error" = inherits(bad_input, "try-error"))
 
+# Check that a control variable with a colon in its name is not counted as an
+# interaction (continent as moderator gives 5 interaction terms)
+
+colon_control <- analyse_happiness(
+  primary_predictor = "Social support", moderator = "continent",
+  control_variables = "Population: Labor force participation (%)"
+)
+
+stopifnot(
+  "A control with a colon counts as an interaction" =
+    !"Population: Labor force participation (%)" %in% colon_control$interaction_coefficients$term,
+  "Wrong number of interaction terms" =
+    nrow(colon_control$interaction_coefficients) == nlevels(colon_control$model_data$moderator) - 1
+)
+
+# Check that every control keeps its own name with 10 or more controls
+# (control1 must not also match control10)
+
+many_controls <- available_predictors[vapply(
+  combined_data[available_predictors], is.numeric, logical(1)
+)]
+many_controls <- setdiff(many_controls, "Social support")[1:10]
+ten_controls <- analyse_happiness(
+  primary_predictor = "Social support", control_variables = many_controls
+)
+
+stopifnot(
+  "Control names are wrong with 10 or more controls" =
+    all(many_controls %in% ten_controls$all_coefficients$term)
+)
+
+# Check that errors name the real variable, not an internal name like control1
+
+one_continent <- try(
+  analyse_happiness(
+    primary_predictor = "Social support", control_variables = "continent",
+    data = combined_data[combined_data$continent == "Europe", ]
+  ),
+  silent = TRUE
+)
+
+stopifnot(
+  "Error should name the real variable" =
+    grepl("No variation in continent", one_continent)
+)
+
 message("All error checks passed.")
