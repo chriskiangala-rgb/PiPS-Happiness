@@ -34,7 +34,7 @@ name_changes <- c(
   "State of Palestine" = "Palestinian National Authority",
   "Turkiye" = "Turkey"
 )
-
+control_variables = c("Logged GDP per capita", "Life expectancy")
 # Replace these names in the happiness dataset's matching column.
 for (old_name in names(name_changes)) {
   happiness_data$join_country[happiness_data$join_country == old_name] <- name_changes[[old_name]]
