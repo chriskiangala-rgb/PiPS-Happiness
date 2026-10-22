@@ -94,13 +94,15 @@ We checked the regression assumptions for **35 predictors**, each in the simple 
 - **Exploratory analysis:** Testing many predictors and combinations increases the chance of statistically significant findings occurring by chance. Results should be treated as hypotheses for further testing rather than definitive conclusions.
   
 ## 9. Student Roles
-Diemithry was primarily responsible for the app: the Shiny app that lets users explore the data and run the analysis interactively. Diemithry also contributed to the analysis code and its checks, and reviewed pull requests of the other group members.  
-Tian was responsible for the code and data surrounding the analysis. Tian collected the data that would be used in this project and wrote the basis of the analysis that would be used for the app. He also wrote a part of the README and reviewed some code of his other group members.  
-Christian was the project leader and was responsible for the README and the repository structure. He also created an error check file and reviewed code.
+- Diemithry was primarily responsible for the app: the Shiny app that lets users explore the data and run the analysis interactively. Diemithry also contributed to the analysis code and its checks, and reviewed pull requests of the other group members.
+- Tian was responsible for the code and data surrounding the analysis. Tian collected the data that would be used in this project and wrote the basis of the analysis that would be used for the app. He also wrote a part of the README and reviewed some code of his other group members.
+- Christian was the project leader and was responsible for the README and the repository structure. He also created an error check file and reviewed code.
+
 ## 10. AI statement
-Diemithry used Claude (Claude Code) to help write, test and review the code of the app and the analysis, to run the assumption checks, and to draft README text and pull request descriptions. Every change was checked and tested before it was committed.  
-Tian used LLMs (UvA AI Chat and Claude) to help write code for the analysis and parts of the README, and review code from both himself and his teammates.
-Christian used LLMs (UvA AI Chat and Claude) to help write and review code and to get feedback on the repository and README structure. 
+- Diemithry used Claude (Claude Code) to help write, test and review the code of the app and the analysis, to run the assumption checks, and to draft README text and pull request descriptions. Every change was checked and tested before it was committed.
+- Tian used LLMs (UvA AI Chat and Claude) to help write code for the analysis and parts of the README, and review code from both himself and his teammates.
+- Christian used LLMs (UvA AI Chat and Claude) to help write and review code and to get feedback on the repository and README structure.
+
 ## 11. References
 * Elgiriyewithana, N. (2023). Global Country Information Dataset 2023. https://www.kaggle.com/. Retrieved October 22, 2026, from https://www.kaggle.com/datasets/nelgiriyewithana/countries-of-the-world-2023  
 * Long, J. S., & Ervin, L. H. (2000). Using heteroscedasticity consistent standard errors in the linear regression model. The American Statistician, 54(3), 217. https://doi.org/10.1080/00031305.2000.10474549  
