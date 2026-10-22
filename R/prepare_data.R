@@ -235,7 +235,9 @@ predictor_types <- data.frame(
 
 # z-scores ----
 # Keep original/transformed units in combined_data.
-# Use scaled_data for modelling; happiness remains on its original scale.
+# predictor_scale holds the mean and SD of each numeric predictor, used to
+# report effects per SD (through variable_info$sd); the models use the
+# units in combined_data.
 # Missing values remain NA.
 
 numeric_predictors <- predictor_types$variable[

@@ -23,7 +23,7 @@ shiny::runApp(happiness_app(
 ## Assumption checks
 
 The regression assumptions are checked for every predictor in the simple
-model happiness ~ predictor (README, section 8). The counts:
+model happiness ~ predictor (README, Methods). The counts:
 
 ```{r assumption-checks}
 assumption_checks <- check_assumptions()
