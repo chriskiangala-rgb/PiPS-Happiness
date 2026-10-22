@@ -99,8 +99,31 @@ happiness_app <- function(data, predictors,
         "continents", "Continents",
         choices = levels(data$continent), selected = levels(data$continent),
         multiple = TRUE,
-        options = list(`actions-box` = TRUE)
+        # The closed menu reads "All selected" when every continent is
+        # selected and "None selected" when none is; otherwise it lists
+        # the chosen continents.
+        options = list(
+          `actions-box` = TRUE,
+          `select-all-text` = "Select all",
+          `deselect-all-text` = "Select none",
+          `selected-text-format` = paste("count >", nlevels(data$continent) - 1),
+          `count-selected-text` = "All selected",
+          `none-selected-text` = "None selected"
+        )
       ),
+      # Clicking a continent while all are selected shows only that continent,
+      # instead of unticking it; after that, clicks add or remove continents.
+      # Done in the browser, because an update from the server would close
+      # the open menu.
+      shiny::tags$script(shiny::HTML("
+        $(document).on('changed.bs.select', '#continents',
+          function(event, clickedIndex, isSelected, previousValue) {
+            var allWereSelected = previousValue && previousValue.length === this.options.length;
+            if (clickedIndex != null && !isSelected && allWereSelected) {
+              $(this).selectpicker('val', [this.options[clickedIndex].value]);
+            }
+          });
+      ")),
 
       # Highlight one country. Only changes what is shown, not the analysis.
       shinyWidgets::pickerInput(
@@ -299,6 +322,18 @@ happiness_app <- function(data, predictors,
     #   )
     # })
 
+    # Only countries of the chosen continents can be highlighted; a
+    # highlighted country on a continent that is no longer chosen is cleared.
+    shiny::observeEvent(input$continents, {
+      countries <- sort(analysed_data()[["Country name"]])
+      current <- shiny::isolate(input$highlight_country)
+      shinyWidgets::updatePickerInput(
+        session, "highlight_country",
+        choices = c("None" = "", countries),
+        selected = if (current %in% countries) current else ""
+      )
+    }, ignoreNULL = FALSE, ignoreInit = TRUE)
+
     # The countries of the continents chosen in the sidebar. Everything
     # that links results back to countries uses analysed_data(), because
     # the results refer to its row numbers.
@@ -316,6 +351,8 @@ happiness_app <- function(data, predictors,
     result <- shiny::reactive({
       shiny::req(input$primary)
       moderator <- if (is.null(input$moderator)) "" else input$moderator
+      problem <- selection_problem(analysed_data(), c(input$primary, moderator))
+      if (!is.null(problem)) return(simpleError(problem))
       tryCatch(
         analyse_happiness(input$primary, moderator,
                           data = analysed_data(), predictors = predictors),
@@ -464,6 +501,31 @@ predictor_menu <- function(predictor_groups) {
 moderator_choices <- function(predictor_groups, primary) {
   remaining <- lapply(predictor_groups, setdiff, primary)
   c(list(None = ""), predictor_menu(remaining))
+}
+
+# Explain why a selection cannot be analysed, before analysing it: no
+# continents chosen, or too few countries with data on every chosen
+# variable (analyse_happiness() needs at least 3). NULL when it can be.
+selection_problem <- function(data, variables) {
+  if (nrow(data) == 0) {
+    return("No continents selected. Choose at least one continent in the sidebar.")
+  }
+  if (nrow(data) < 3) {
+    return(sprintf(
+      "The selected continents have only %d countries. The analysis needs at least 3: select more continents.",
+      nrow(data)
+    ))
+  }
+  variables <- variables[variables != ""]
+  complete <- sum(stats::complete.cases(data[c("happiness", variables)]))
+  if (complete < 3) {
+    return(sprintf(
+      paste("Only %d of the %d countries in the selected continents have data on %s.",
+            "The analysis needs at least 3: select more continents or other variables."),
+      complete, nrow(data), paste(variables, collapse = " and ")
+    ))
+  }
+  NULL
 }
 
 # Stands in for a part of the app that is planned but not built yet.
