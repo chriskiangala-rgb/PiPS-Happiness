@@ -261,8 +261,8 @@ analyse_happiness <- function(
   
   #checks for 2 different continents and that "continent is primary predictor"
   if (compare_two_continents) {
-    if (primary_predictor != "continent") {
-      stop("Select continent as the primary predictor to compare two continents.")
+    if (!"continent" %in% c(primary_predictor, moderator)) {
+      stop("Select continent as the predictor or moderator to compare two continents.")
     }
     
     if (reference_continent == "" || comparison_continent == "") {
