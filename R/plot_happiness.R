@@ -6,6 +6,8 @@
 #' with 95% confidence bands. With a moderator, there is one line per group
 #' (categorical moderator) or one line at a low, average and high value
 #' (numeric moderator), so the plot shows exactly the model that was tested.
+#' Control variables are held at their mean (numeric) or reference group
+#' (categorical) in the lines; the points show the countries as they are.
 #'
 #' @param result The list returned by analyse_happiness().
 #' @param countries Optional country names, in the same row order as the data
@@ -116,8 +118,13 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
       y = "Happiness (ladder score, 0-10)",
       colour = legend_title,
       fill = if (primary_is_numeric) legend_title,
-      caption = paste(
-        result$n_countries, "countries. Lines and bands: model predictions with 95% CI."
+      caption = paste0(
+        result$n_countries, " countries. Lines and bands: model predictions with 95% CI",
+        if (length(result$control_variables) > 0) {
+          paste0(",\nwith ", paste(result$control_variables, collapse = ", "),
+                 " held at the mean or reference group")
+        },
+        "."
       )
     ) +
     ggplot2::theme_minimal(base_size = 13) +
@@ -127,6 +134,22 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
 # Build the values at which the model's predictions are plotted ----
 
 build_prediction_grid <- function(model_data, moderation) {
+  grid <- prediction_values(model_data, moderation)
+  for (control in control_terms(model_data)) {
+    values <- model_data[[control]]
+    held_at <- if (is.numeric(values)) {
+      mean(values)
+    } else {
+      factor(levels(values)[1], levels = levels(values))
+    }
+    grid[[control]] <- rep(held_at, nrow(grid))
+  }
+  grid
+}
+
+# The predictor (and moderator) values to plot, before the control
+# variables are added.
+prediction_values <- function(model_data, moderation) {
   primary <- model_data$primary
   primary_values <- if (is.numeric(primary)) {
     seq(min(primary), max(primary), length.out = 100)

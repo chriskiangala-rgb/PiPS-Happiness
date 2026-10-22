@@ -112,6 +112,10 @@ variance_inflation <- function(result) {
   correlation <- stats::cor(design[, keep, drop = FALSE])
   term_names <- attr(stats::terms(model), "term.labels")
   if (length(term_names) < 2L) return(NULL)
+  # The model calls the control variables control1, control2, ...
+  is_control <- term_names %in% names(result$control_mapping)
+  variable_names <- term_names
+  variable_names[is_control] <- result$control_mapping[term_names[is_control]]
 
   vif <- vapply(seq_along(term_names), function(term) {
     in_term <- term_of_column == term
@@ -121,7 +125,7 @@ variance_inflation <- function(result) {
   }, numeric(1))
 
   data.frame(
-    Variable = vapply(term_names, label_term, character(1),
+    Variable = vapply(variable_names, label_term, character(1),
                       primary = result$primary, moderator = result$moderator),
     VIF = sprintf("%.2f", vif),
     Concern = ifelse(vif > 5, "High overlap", "OK"),

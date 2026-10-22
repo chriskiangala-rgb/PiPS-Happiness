@@ -55,36 +55,20 @@ happiness_app <- function(data, predictors,
         "and happiness differs between groups or levels of another variable."
       ),
 
-      # PLANNED (needs PR 8 merged):
-      # Control variables, at most 3, never the predictor or the
-      # moderator. Needs the control_variables argument of
-      # analyse_happiness() from PR 8.
-      # shinyWidgets::pickerInput(
-      #   "controls", "Control variables (optional, max. 3)",
-      #   choices = setdiff(predictors, default_predictor),
-      #   multiple = TRUE,
-      #   options = list(`live-search` = TRUE, `max-options` = 3, size = 10)
-      # ),
-      # shiny::helpText(
-      #   "Control variables are held constant: the effect shown is the",
-      #   "association that remains between countries that are equal on them."
-      # ),
-
-      # PLANNED (needs PR 8 merged):
-      # Compare two continents. Only shown when continent is the
-      # predictor or the moderator; empty means all continents. Needs the
-      # reference_continent and comparison_continent arguments from PR 8.
-      # shiny::conditionalPanel(
-      #   "input.primary == 'continent' || input.moderator == 'continent'",
-      #   shinyWidgets::pickerInput(
-      #     "reference_continent", "Reference continent",
-      #     choices = c("All continents" = "", levels(data$continent))
-      #   ),
-      #   shinyWidgets::pickerInput(
-      #     "comparison_continent", "Compared with",
-      #     choices = c("All continents" = "", levels(data$continent))
-      #   )
-      # ),
+      # Control variables, at most 3, never the predictor or the moderator.
+      shinyWidgets::pickerInput(
+        "controls", "Control variables (optional, max. 3)",
+        choices = control_choices(predictor_groups, default_predictor),
+        multiple = TRUE,
+        options = list(
+          `live-search` = TRUE, `max-options` = 3, size = 10,
+          `none-selected-text` = "None"
+        )
+      ),
+      shiny::helpText(
+        "Control variables are held constant: the effect shown is the",
+        "association that remains between countries that are equal on them."
+      ),
 
       # Choose which continents are analysed, to check whether a result
       # holds in one part of the world. Single countries cannot be left out:
@@ -92,9 +76,6 @@ happiness_app <- function(data, predictors,
       # bias) and invites dropping countries for who they are rather than
       # for a statistical reason. The tiles always show how many countries
       # were left out.
-      # PLANNED (needs PR 8 merged):
-      # Once the two-continent comparison above exists, it only
-      # needs the reference continent, since this filter picks the continents.
       shinyWidgets::pickerInput(
         "continents", "Continents",
         choices = levels(data$continent), selected = levels(data$continent),
@@ -124,6 +105,17 @@ happiness_app <- function(data, predictors,
             }
           });
       ")),
+
+      # The continent the other continents are compared with. Only shown
+      # when continent is the predictor or the moderator; the menu above
+      # picks which continents are compared.
+      shiny::conditionalPanel(
+        "input.primary == 'continent' || input.moderator == 'continent'",
+        shinyWidgets::pickerInput(
+          "reference_continent", "Reference continent",
+          choices = levels(data$continent), selected = levels(data$continent)[1]
+        )
+      ),
 
       # Highlight one country. Only changes what is shown, not the analysis.
       shinyWidgets::pickerInput(
@@ -283,8 +275,7 @@ happiness_app <- function(data, predictors,
     bslib::layout_columns(
       col_widths = c(5, 7),
       # PLANNED (needs standardized, robust results from analyse_happiness()):
-      # Describe the effect per 1 SD and name the control variables;
-      # with controls, also compare the effect without and with them on the
+      # Describe the effect per 1 SD; with controls, also compare the effect without and with them on the
       # same countries. Changes go in describe_result().
       bslib::card(
         bslib::card_header("What does this mean?"),
@@ -292,7 +283,7 @@ happiness_app <- function(data, predictors,
       ),
       # PLANNED (needs standardized, robust results from analyse_happiness()):
       # Standardized and unstandardized estimates side by side,
-      # robust CIs, and the real names of the control variables.
+      # and robust CIs.
       # Changes go in format_coefficients().
       bslib::card(
         bslib::card_header("Model coefficients"),
@@ -312,16 +303,27 @@ happiness_app <- function(data, predictors,
       )
     })
 
-    # PLANNED (needs PR 8 merged):
     # Keep the predictor and moderator out of the control menu.
-    # shiny::observeEvent(list(input$primary, input$moderator), {
-    #   taken <- c(input$primary, input$moderator)
-    #   shinyWidgets::updatePickerInput(
-    #     session, "controls",
-    #     choices = setdiff(predictors, taken),
-    #     selected = setdiff(shiny::isolate(input$controls), taken)
-    #   )
-    # })
+    shiny::observeEvent(list(input$primary, input$moderator), {
+      taken <- c(input$primary, input$moderator)
+      shinyWidgets::updatePickerInput(
+        session, "controls",
+        choices = control_choices(predictor_groups, taken),
+        selected = setdiff(shiny::isolate(input$controls), taken)
+      )
+    }, ignoreInit = TRUE)
+
+    # Only a chosen continent can be the reference; keep the current one
+    # while it is still chosen.
+    shiny::observeEvent(input$continents, {
+      current <- shiny::isolate(input$reference_continent)
+      chosen <- if (length(input$continents) > 0) input$continents else levels(data$continent)
+      shinyWidgets::updatePickerInput(
+        session, "reference_continent",
+        choices = chosen,
+        selected = if (isTRUE(current %in% chosen)) current else chosen[1]
+      )
+    }, ignoreNULL = FALSE, ignoreInit = TRUE)
 
     # Only countries of the chosen continents can be highlighted; a
     # highlighted country on a continent that is no longer chosen is cleared.
@@ -344,19 +346,31 @@ happiness_app <- function(data, predictors,
 
     # Some combinations cannot be estimated (e.g. too few countries);
     # keep analyse_happiness()'s error so it can be shown instead of a crash.
-    # PLANNED (needs PR 8 merged):
-    # Also pass its arguments:
-    #   control_variables = input$controls,
-    #   reference_continent = input$reference_continent,
-    #   comparison_continent = input$comparison_continent
+    # When continent is the predictor or the moderator, the chosen continents
+    # and the reference continent are passed on; analyse_happiness() does not
+    # accept them otherwise, so then the sidebar filter alone picks the
+    # countries. The data is filtered either way, so the results refer to
+    # the row numbers of analysed_data().
     result <- shiny::reactive({
       shiny::req(input$primary)
       moderator <- if (is.null(input$moderator)) "" else input$moderator
-      problem <- selection_problem(analysed_data(), c(input$primary, moderator))
+      controls <- setdiff(input$controls, c(input$primary, moderator))
+      problem <- selection_problem(analysed_data(), c(input$primary, moderator, controls))
       if (!is.null(problem)) return(simpleError(problem))
+      compares_continents <- "continent" %in% c(input$primary, moderator)
+      reference <- if (compares_continents && isTRUE(input$reference_continent %in% input$continents)) {
+        input$reference_continent
+      } else {
+        ""
+      }
       tryCatch(
-        analyse_happiness(input$primary, moderator,
-                          data = analysed_data(), predictors = predictors),
+        analyse_happiness(
+          input$primary, moderator,
+          data = analysed_data(), predictors = predictors,
+          control_variables = controls,
+          selected_continents = if (compares_continents) input$continents,
+          reference_continent = reference
+        ),
         error = function(error) error
       )
     })
@@ -387,10 +401,9 @@ happiness_app <- function(data, predictors,
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
     # PLANNED (needs standardized, robust results from analyse_happiness()):
-    # In plot_happiness(), hold control variables at their mean or
-    # reference group in the prediction lines, draw the bands from the
-    # robust standard errors, keep the x-axis in the original units, and
-    # add the curved line when input$show_curve is ticked.
+    # In plot_happiness(), draw the bands from the robust standard errors,
+    # keep the x-axis in the original units, and add the curved line when
+    # input$show_curve is ticked.
     output$plot <- plotly::renderPlotly({
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
       plot <- plot_happiness(result(), countries = analysed_data()[["Country name"]],
@@ -462,7 +475,7 @@ happiness_app <- function(data, predictors,
     output$vif <- shiny::renderUI({
       vif <- variance_inflation(usable_result())
       if (is.null(vif)) {
-        return(shiny::p(class = "text-muted", "Needs at least two variables: choose a moderator."))
+        return(shiny::p(class = "text-muted", "Needs at least two variables: choose a moderator or a control variable."))
       }
       reactable::reactable(vif, compact = TRUE, pagination = FALSE)
     })
@@ -505,12 +518,21 @@ moderator_choices <- function(predictor_groups, primary) {
   c(list(None = ""), predictor_menu(remaining))
 }
 
+# The control menu: every predictor except the predictor and moderator.
+control_choices <- function(predictor_groups, taken) {
+  predictor_menu(lapply(predictor_groups, setdiff, taken))
+}
+
 # Explain why a selection cannot be analysed, before analysing it: no
-# continents chosen, or too few countries with data on every chosen
-# variable (analyse_happiness() needs at least 3). NULL when it can be.
+# continents chosen, a single continent while continents are compared, or
+# too few countries with data on every chosen variable (analyse_happiness()
+# needs at least 3). NULL when it can be.
 selection_problem <- function(data, variables) {
   if (nrow(data) == 0) {
     return("No continents selected. Choose at least one continent in the sidebar.")
+  }
+  if ("continent" %in% variables && length(unique(data$continent)) < 2) {
+    return("Continent is the predictor or moderator: select at least two continents to compare.")
   }
   if (nrow(data) < 3) {
     return(sprintf(
@@ -632,7 +654,3 @@ remove_empty_fonts <- function(settings) {
 #   z-scored numeric predictors (with their mean and SD in result$scaling),
 #   robust (HC3) standard errors, the robust interaction test, and the
 #   R-squared the predictor adds on top of the controls.
-#
-# From PR 8 (already open), in analyse_happiness.R:
-#   the control_variables, reference_continent and comparison_continent
-#   arguments.
