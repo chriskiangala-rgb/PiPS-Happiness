@@ -395,6 +395,13 @@ analyse_happiness <- function(
     row.names = NULL
   )
   
+  # Show the real names of the control variables instead of control1, control2, ...
+  for (i in seq_along(control_names)) {
+    coefficient_table$term <- sub(
+      paste0("^", control_names[i]), control_variables[i], coefficient_table$term
+    )
+  }
+  
   # Separate primary and interaction coefficients ----
   
   # Separate main-effect coefficients from interaction coefficients.
