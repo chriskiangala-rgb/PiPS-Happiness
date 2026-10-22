@@ -26,9 +26,11 @@ format_coefficients <- function(result) {
 #' Describe the result in plain language
 #'
 #' @param result The list returned by analyse_happiness().
+#' @param sd Optional SD of the predictor across all countries with data
+#'   (variable_info$sd), to also give the effect per SD.
 #'
 #' @return A character vector with one sentence per element.
-describe_result <- function(result) {
+describe_result <- function(result, sd = NULL) {
   model_summary <- summary(result$model)
   sentences <- sprintf(
     "Based on %d countries (%d excluded because of missing data).",
@@ -58,6 +60,13 @@ describe_result <- function(result) {
         slope$ci_lower * step, slope$ci_upper * step,
         format_p(slope$p_value, with_sign = TRUE)
       ))
+      per_sd <- per_sd_effect(result, sd)
+      if (!is.null(per_sd)) {
+        sentences <- c(sentences, sprintf(
+          "Per standard deviation (%s, across all countries with data): %+.2f points (95%% CI [%.2f, %.2f]).",
+          per_sd$size, per_sd$estimate, per_sd$ci_lower, per_sd$ci_upper
+        ))
+      }
     }
     sentences <- c(sentences, sprintf(
       "%s explain%s %.0f%% of the differences in happiness between countries (F(%d, %d) = %.2f, p %s).",
@@ -125,11 +134,14 @@ describe_result <- function(result) {
 #' @param result The list returned by analyse_happiness().
 #' @param countries Optional country names in the order of the model
 #'   observations, for the example of a logged predictor.
+#' @param sd Optional SD of the predictor across all countries with data
+#'   (variable_info$sd), for the effect per SD.
 #'
 #' @return A list with a title, the value, a detail line (CI and p-value)
 #'   and, with a moderator, a baseline line with the effect without it. For
-#'   a logged predictor with countries given, also an example line.
-key_effect <- function(result, countries = NULL) {
+#'   a numeric predictor without a moderator, also the effect per SD (when
+#'   sd is given) and, for a logged predictor, an example line.
+key_effect <- function(result, countries = NULL, sd = NULL) {
   if (result$moderation) {
     terms <- result$interaction_coefficients
     n_terms <- nrow(terms)
@@ -165,7 +177,14 @@ key_effect <- function(result, countries = NULL) {
       detail = sprintf("95%% CI [%.2f, %.2f], p %s",
                        slope$ci_lower * step, slope$ci_upper * step,
                        format_p(slope$p_value, with_sign = TRUE)),
-      example = if (!is.null(countries)) log_example(result, countries)
+      example = if (!is.null(countries)) log_example(result, countries),
+      per_sd = {
+        per_sd <- per_sd_effect(result, sd)
+        if (!is.null(per_sd)) {
+          sprintf("Per SD (%s): %+.2f, 95%% CI [%.2f, %.2f]",
+                  per_sd$size, per_sd$estimate, per_sd$ci_lower, per_sd$ci_upper)
+        }
+      }
     ))
   }
 
@@ -477,6 +496,30 @@ log_example <- function(result, countries) {
     format_number(scale$base^values[low]), countries[low],
     format_number(scale$base^values[high]), countries[high],
     slope * (values[high] - values[low])
+  )
+}
+
+# The slope of a numeric predictor per SD, with its CI. The SD is the one
+# across all countries with data (variable_info$sd), so the same predictor
+# gets the same step in every analysis. For a logged predictor the SD is on
+# the log scale; its size is shown as a factor ("8.4 times more GDP per
+# person"). NULL without an SD or for a categorical predictor.
+per_sd_effect <- function(result, sd) {
+  if (is.null(sd) || length(sd) != 1 || !is.finite(sd) ||
+      !is.numeric(result$model_data$primary)) {
+    return(NULL)
+  }
+  slope <- result$primary_coefficients
+  scale <- log_scale(result$primary)
+  list(
+    size = if (is.null(scale)) {
+      paste("1 SD =", format_number(sd))
+    } else {
+      sprintf("1 SD = %s times more %s", format_number(scale$base^sd), scale$name)
+    },
+    estimate = slope$estimate * sd,
+    ci_lower = slope$ci_lower * sd,
+    ci_upper = slope$ci_upper * sd
   )
 }
 
