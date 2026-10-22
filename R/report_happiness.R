@@ -78,25 +78,38 @@ describe_result <- function(result) {
 #'
 #' The effect depends on the analysis:
 #' - numeric predictor: the slope (change in happiness per unit);
-#' - categorical predictor: the largest difference between two groups, with
-#'   a Tukey-adjusted CI and p-value (because the largest of many differences
-#'   is picked out);
-#' - with a moderator: the extra variance explained by the interaction
-#'   (the R-squared change compared with the model without interaction).
+#' - categorical predictor: the largest difference between two groups,
+#'   computed from the fitted lm model, with a Bonferroni-adjusted CI and
+#'   p-value (because the largest of many differences is picked out);
+#' - with a moderator: the interaction estimate, followed by the effect of
+#'   the predictor without the moderator on the same countries. With several
+#'   interaction terms (a categorical variable with more than two groups),
+#'   the clearest one is shown, Bonferroni-adjusted for picking it out.
 #'
 #' @param result The list returned by analyse_happiness().
 #'
-#' @return A list with a title, the value and a detail line (CI and p-value).
+#' @return A list with a title, the value, a detail line (CI and p-value)
+#'   and, with a moderator, a baseline line with the effect without it.
 key_effect <- function(result) {
   if (result$moderation) {
-    test <- result$interaction_test
-    r_squared_change <- result$r_squared - summary(result$additive_model)$r.squared
+    terms <- result$interaction_coefficients
+    n_terms <- nrow(terms)
+    chosen <- terms[which.max(abs(terms$t_value)), ]
+    critical_t <- stats::qt(1 - 0.05 / (2 * n_terms), stats::df.residual(result$model))
     return(list(
-      title = "Extra variance explained by the interaction",
-      value = sprintf("%.1f%%", 100 * r_squared_change),
-      detail = sprintf("F(%d, %d) = %.2f, p %s",
-                       as.integer(test$df_added), as.integer(df.residual(result$model)),
-                       test$f_value, format_p(test$p_value, with_sign = TRUE))
+      title = paste0(
+        describe_interaction(chosen$term, result),
+        if (n_terms > 1) sprintf(" (clearest of %d)", n_terms)
+      ),
+      value = sprintf("%+.2f", chosen$estimate),
+      detail = sprintf(
+        "95%% CI [%.2f, %.2f], p %s%s",
+        chosen$estimate - critical_t * chosen$std_error,
+        chosen$estimate + critical_t * chosen$std_error,
+        format_p(min(1, chosen$p_value * n_terms), with_sign = TRUE),
+        if (n_terms > 1) " (Bonferroni-adjusted)" else ""
+      ),
+      baseline = effect_without_moderator(result)
     ))
   }
 
@@ -111,25 +124,103 @@ key_effect <- function(result) {
     ))
   }
 
-  # Categorical predictor: all pairwise group differences, Tukey-adjusted.
-  differences <- stats::TukeyHSD(
-    stats::aov(happiness ~ primary, data = result$model_data)
-  )$primary
-  largest <- which.max(abs(differences[, "diff"]))
-  groups <- strsplit(rownames(differences)[largest], "-", fixed = TRUE)[[1]]
-  difference <- differences[largest, ]
-  # Report the difference as positive: higher group vs lower group.
-  if (difference[["diff"]] < 0) {
-    groups <- rev(groups)
-    difference[c("diff", "lwr", "upr")] <- -difference[c("diff", "upr", "lwr")]
-  }
+  largest <- largest_difference(result$model, levels(result$model_data$primary))
   list(
     title = "Largest difference in happiness between groups",
-    value = sprintf("%+.2f", difference[["diff"]]),
-    detail = sprintf("%s vs %s, 95%% CI [%.2f, %.2f], p %s (Tukey-adjusted)",
-                     groups[1], groups[2], difference[["lwr"]], difference[["upr"]],
-                     format_p(difference[["p adj"]], with_sign = TRUE))
+    value = sprintf("%+.2f", largest$estimate),
+    detail = sprintf("%s vs %s, 95%% CI [%.2f, %.2f], p %s (Bonferroni-adjusted for %d comparisons)",
+                     largest$higher, largest$lower, largest$ci_lower, largest$ci_upper,
+                     format_p(largest$p_value, with_sign = TRUE), largest$n_comparisons)
   )
+}
+
+# Say in plain words what an interaction coefficient means, e.g.
+# "primary:moderatorAsia" -> "Difference in the effect of Social support:
+# Asia vs Africa".
+describe_interaction <- function(term, result) {
+  parts <- strsplit(term, ":", fixed = TRUE)[[1]]
+  group <- sub("^(primary|moderator)", "", parts[parts != "primary" & parts != "moderator"])
+  primary_numeric <- is.numeric(result$model_data$primary)
+  moderator_numeric <- is.numeric(result$model_data$moderator)
+  if (primary_numeric && moderator_numeric) {
+    sprintf("Change in the effect of %s per unit of %s", result$primary, result$moderator)
+  } else if (primary_numeric) {
+    sprintf("Difference in the effect of %s: %s vs %s",
+            result$primary, group, result$reference_categories$moderator)
+  } else if (moderator_numeric) {
+    sprintf("Change in the %s vs %s difference per unit of %s",
+            group, result$reference_categories$primary, result$moderator)
+  } else {
+    paste("Interaction:", label_term(term, result$primary, result$moderator))
+  }
+}
+
+# The effect of the predictor without the moderator, on the same countries
+# as the moderated model, so the two can be compared.
+effect_without_moderator <- function(result) {
+  initial <- stats::lm(happiness ~ primary, data = result$model_data)
+  if (is.numeric(result$model_data$primary)) {
+    interval <- stats::confint(initial)["primary", ]
+    return(sprintf(
+      "Without the moderator: %+.2f per unit of %s, 95%% CI [%.2f, %.2f]",
+      stats::coef(initial)[["primary"]], result$primary, interval[1], interval[2]
+    ))
+  }
+  largest <- largest_difference(initial, levels(result$model_data$primary))
+  sprintf("Without the moderator: largest group difference %+.2f (%s vs %s)",
+          largest$estimate, largest$higher, largest$lower)
+}
+
+# The largest pairwise group difference, reported as higher vs lower group.
+largest_difference <- function(model, groups) {
+  differences <- group_differences(model, groups)
+  largest <- differences[which.max(abs(differences$estimate)), ]
+  if (largest$estimate < 0) {
+    largest[c("higher", "lower")] <- largest[c("lower", "higher")]
+    largest[c("estimate", "ci_lower", "ci_upper")] <- -largest[c("estimate", "ci_upper", "ci_lower")]
+  }
+  largest$n_comparisons <- nrow(differences)
+  largest
+}
+
+#' All pairwise differences between the groups of the predictor
+#'
+#' Computed from the coefficients of the fitted lm model, so they take the
+#' rest of the model (e.g. control variables) into account. With treatment
+#' coding the first group is the reference (coefficient 0); the difference
+#' between two other groups is the difference of their coefficients.
+#' CIs and p-values are Bonferroni-adjusted for the number of pairs, so a
+#' CI excludes 0 exactly when the adjusted p-value is below .05.
+#'
+#' @param model The fitted lm model, with the predictor named "primary".
+#' @param groups The groups of the predictor; the first is the reference.
+#'
+#' @return A data frame with one row per pair of groups.
+group_differences <- function(model, groups) {
+  coefficients <- stats::coef(model)
+  covariance <- stats::vcov(model)
+  pairs <- utils::combn(groups, 2)
+  n_pairs <- ncol(pairs)
+  critical_t <- stats::qt(1 - 0.05 / (2 * n_pairs), stats::df.residual(model))
+
+  rows <- lapply(seq_len(n_pairs), function(i) {
+    # Weights that turn the coefficients into "group 1 minus group 2".
+    contrast <- stats::setNames(numeric(length(coefficients)), names(coefficients))
+    first <- paste0("primary", pairs[1, i])
+    second <- paste0("primary", pairs[2, i])
+    if (first %in% names(contrast)) contrast[first] <- 1
+    if (second %in% names(contrast)) contrast[second] <- -1
+    estimate <- sum(contrast * coefficients)
+    std_error <- sqrt(drop(t(contrast) %*% covariance %*% contrast))
+    p_value <- 2 * stats::pt(-abs(estimate / std_error), stats::df.residual(model))
+    data.frame(
+      higher = pairs[1, i], lower = pairs[2, i], estimate = estimate,
+      ci_lower = estimate - critical_t * std_error,
+      ci_upper = estimate + critical_t * std_error,
+      p_value = min(1, p_value * n_pairs)
+    )
+  })
+  do.call(rbind, rows)
 }
 
 #' Describe one country's place in the analysis

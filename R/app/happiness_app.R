@@ -156,6 +156,7 @@ happiness_app <- function(data, predictors,
         title = shiny::textOutput("effect_title", inline = TRUE),
         value = shiny::textOutput("effect_value"),
         shiny::textOutput("effect_detail"),
+        shiny::textOutput("effect_baseline"),
         theme = tile_theme()
       ),
       # PLANNED (needs standardized, robust results from analyse_happiness()):
@@ -381,6 +382,7 @@ happiness_app <- function(data, predictors,
     output$effect_title <- shiny::renderText(effect()$title)
     output$effect_value <- shiny::renderText(effect()$value)
     output$effect_detail <- shiny::renderText(effect()$detail)
+    output$effect_baseline <- shiny::renderText(effect()$baseline)
 
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
