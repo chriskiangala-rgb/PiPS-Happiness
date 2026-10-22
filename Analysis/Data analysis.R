@@ -213,7 +213,6 @@ analyse_happiness <- function(
     data = combined_data,
     predictors = available_predictors,
     reference_continent = "",
-    comparison_continent = "",
     control_variables = character(0),
     selected_continents = NULL
 ) {
