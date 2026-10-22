@@ -1,5 +1,7 @@
 # Run from the project root: source("tests/app_checks.R")
-for (file in list.files("R", recursive = TRUE, full.names = TRUE)) source(file)
+# internals = TRUE: these checks also test the helper functions directly.
+source("R/load_project.R")
+load_project(internals = TRUE)
 
 # Checks for the Shiny app: its helpers, every output it builds from a
 # result, and the app itself without a browser (shiny::testServer).

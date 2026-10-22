@@ -1,10 +1,24 @@
 # Run from the project root: source("tests/error_checks.R")
-source("R/prepare_data.R")
-# The analysis functions: analyse_happiness(), check_assumptions() and
-# the helpers they use.
-for (file in list.files("R/analysis", full.names = TRUE)) source(file)
+# internals = TRUE: these checks also inspect the raw data and the helpers.
+source("R/load_project.R")
+load_project(internals = TRUE)
 
-#Error checks for the happiness data analysis
+# Error checks for the happiness data analysis
+
+# Check that load_project() shows only the high-level functions and the
+# prepared data, not the helpers or intermediate objects
+shown <- new.env()
+load_project(envir = shown)
+stopifnot(
+  "load_project() should show only the high-level functions and the data" = setequal(
+    ls(shown),
+    c("analyse_happiness", "plot_happiness", "format_coefficients", "describe_result",
+      "check_assumptions", "happiness_app", "group_predictors", "combined_data",
+      "available_predictors", "predictor_types", "predictor_notes", "variable_info")
+  ),
+  "The shown functions should still find their helpers" =
+    is.data.frame(shown$format_coefficients(shown$analyse_happiness("Social support")))
+)
 
 # Check that data preparation created the objects used below
 stopifnot(
