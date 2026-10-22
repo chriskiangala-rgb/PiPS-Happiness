@@ -27,7 +27,7 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
 
   primary_is_numeric <- is.numeric(model_data$primary)
   scale <- if (primary_is_numeric) log_scale(result$primary)
-  primary_name <- if (is.null(scale)) result$primary else scale$name
+  primary_name <- if (is.null(scale)) display_name(result, result$primary) else scale$name
 
   # Colour the countries by group only when the moderator is categorical.
   colour_points <- result$moderation && !is.numeric(model_data$moderator)
@@ -125,14 +125,14 @@ plot_happiness <- function(result, countries = NULL, highlight = "") {
   legend_title <- if (!result$moderation) {
     NULL
   } else if (is.numeric(model_data$moderator)) {
-    paste(result$moderator, "level")
+    paste(display_name(result, result$moderator), "level")
   } else {
-    result$moderator
+    display_name(result, result$moderator)
   }
 
   plot +
     ggplot2::labs(
-      x = if (is.null(scale)) result$primary else paste(scale$name, "(log scale)"),
+      x = if (is.null(scale)) primary_name else paste(scale$name, "(log scale)"),
       y = "Happiness (ladder score, 0-10)",
       colour = legend_title,
       fill = if (primary_is_numeric) legend_title,
@@ -149,7 +149,7 @@ plot_caption <- function(result, line_break = "\n") {
   paste0(
     result$n_countries, " countries. Lines and bands: model predictions with 95% CI",
     if (length(result$control_variables) > 0) {
-      paste0(",", line_break, "with ", paste(result$control_variables, collapse = ", "),
+      paste0(",", line_break, "with ", paste(display_name(result, result$control_variables), collapse = ", "),
              " held at the mean or reference group")
     },
     "."
