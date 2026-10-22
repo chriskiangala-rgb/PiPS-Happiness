@@ -597,6 +597,8 @@ interactive_plot <- function(plot) {
   plotly::config(interactive, displaylogo = FALSE)
 }
 
+# Remove every empty font name from a nested list of plotly layout settings,
+# so the font set for the whole plot is used instead.
 remove_empty_fonts <- function(settings) {
   if (!is.list(settings)) return(settings)
   if (!is.null(settings$family) && settings$family %in% c("", "''")) settings$family <- NULL
