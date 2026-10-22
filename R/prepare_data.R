@@ -1,6 +1,6 @@
 # Prepare the combined happiness + world dataset ----
 # Creates combined_data and available_predictors. Paths are relative to the
-# project root, so run this with the repo folder as working directory.
+# project root, so run this with the repo folder as the working directory.
 
 library(countrycode)
 
@@ -41,13 +41,16 @@ for (old_name in names(name_changes)) {
 }
 
 # Show countries in the happiness dataset without a world-data match.
-unmatched_countries <- setdiff(happiness_data$join_country, world_data$join_country)
-
+ unmatched_countries <- setdiff(happiness_data$join_country, world_data$join_country)
+if (length(unmatched_countries) > 0) {
+  message("No world-data match: ", paste(unmatched_countries, collapse = ", "))
+}
 # Check duplicate countries and merge datasets ----
 
 # Check that each dataset has only one row per country.
 stopifnot(
-  !anyDuplicated(happiness_data$join_country),!anyDuplicated(world_data$join_country)
+  !anyDuplicated(happiness_data$join_country),
+  !anyDuplicated(world_data$join_country)
 )
 
 # Combine the datasets using the matching country names.
@@ -65,7 +68,9 @@ names(combined_data)[names(combined_data) == "Standard error of ladder score"] <
 
 # Clean and convert numeric world-data columns ----
 
-# Identify the world-dataset columns that should stay as text.
+# These stay text. Keep Official language and Currency-Code here even though
+# they are not used as predictors, otherwise they would be turned into NA.
+
 text_columns <- c(
   "Country",
   "Abbreviation",
@@ -84,9 +89,41 @@ numeric_columns <- setdiff(names(world_data), text_columns)
 for (column in numeric_columns) {
   combined_data[[column]] <- as.numeric(gsub("[,$%[:space:]]", "", combined_data[[column]]))
 }
+# Transform and rescale predictors ----
+
+# Before z-scoring, one log2 unit represents a doubling.
+# After z-scoring, one unit represents one SD of the logged variable.
+# Zero or negative values become NA.
+
+log2_positive <- function(x) {
+x[!is.na(x) & x <= 0] <- NA
+ log2(x)
+}
+# 1. Totals -> comparable measures
+combined_data[["GDP per person"]] <- combined_data$GDP / combined_data$Population
+combined_data[["CO2 per person"]] <- combined_data[["Co2-Emissions"]] / combined_data$Population
+combined_data[["Armed forces per 1000 people"]] <-
+  1000 * combined_data[["Armed Forces size"]] / combined_data$Population
+combined_data[["Urban population (%)"]] <-
+  100 * combined_data$Urban_population / combined_data$Population
+
+combined_data[["log2(GDP per person)"]] <- log2_positive(combined_data[["GDP per person"]])
+combined_data[["log2(CO2 per person)"]] <- log2_positive(combined_data[["CO2 per person"]])
+
+# 2. Log the skewed variables (no log: minimum wage, CPI change, percentages)
+log_vars <- c("Maternal mortality ratio", "Infant mortality", "Population",
+              "Land Area(Km2)", "Density\n(P/Km2)", "CPI")
+stopifnot(all(log_vars %in% names(combined_data)))
+log_names <- paste0("log2(", gsub("\\s+", " ", log_vars), ")")
+
+for (v in log_vars) {
+  combined_data[[paste0("log2(", gsub("\\s+", " ", v), ")")]] <- log2_positive(combined_data[[v]])
+}
+
+# 3. Other variables
+combined_data[["Distance from equator"]] <- abs(combined_data$Latitude)
 
 # Assign continents and split North and South America ----
-
 # Specify classifications for names that may not be recognized,
 # and countries whose continent classification can vary.
 continent_choices <- c(
@@ -155,19 +192,37 @@ happiness_predictors <- c(
 )
 
 # Select the numeric world-dataset variables.
-# Calling Code is an identifier, not a useful numeric predictor. Remove this from variable-selection menu.
-world_predictors <- setdiff(numeric_columns, "Calling Code")
-
-# Combine the options and add categorical variables.
-available_predictors <- unique(
-  c(
-    happiness_predictors,
-    world_predictors,
-    "continent",
-    "Official language",
-    "Currency-Code"
-  )
+# Calling Code is an identifier, not a useful numeric predictor. Remove this from the variable-selection menu.
+# Exclude identifiers and raw versions replaced by transformations.
+replaced <- c(
+  "GDP",
+  "Co2-Emissions",
+  "Urban_population",
+  "Armed Forces size",
+  "Latitude",
+  log_vars
 )
+
+world_predictors <- setdiff(
+  numeric_columns,
+  c("Calling Code", replaced)
+)
+
+derived_predictors <- c(
+  "log2(GDP per person)",
+  "log2(CO2 per person)",
+  "Urban population (%)",
+  "Armed forces per 1000 people",
+  "Distance from equator",
+  log_names
+)
+
+available_predictors <- unique(c(
+  happiness_predictors,
+  world_predictors,
+  derived_predictors,
+  "continent"
+))
 
 # Identify whether each variable is numeric or categorical.
 predictor_types <- data.frame(
@@ -181,10 +236,84 @@ predictor_types <- data.frame(
   row.names = NULL
 )
 
+# z-scores ----
+# Keep original/transformed units in combined_data.
+# Use scaled_data for modelling; happiness remains on its original scale.
+# Missing values remain NA.
+
+numeric_predictors <- predictor_types$variable[
+  predictor_types$type == "numeric"
+]
+
+# Save the means and standard deviations used for scaling.
+predictor_scale <- data.frame(
+  variable = numeric_predictors,
+  mean = vapply(
+    numeric_predictors,
+    function(p) mean(combined_data[[p]], na.rm = TRUE),
+    numeric(1)
+  ),
+  sd = vapply(
+    numeric_predictors,
+    function(p) sd(combined_data[[p]], na.rm = TRUE),
+    numeric(1)
+  ),
+  row.names = NULL
+)
+# Scaling requires finite values and a nonzero standard deviation.
+stopifnot(
+  all(is.finite(predictor_scale$mean)),
+  all(is.finite(predictor_scale$sd)),
+  all(predictor_scale$sd > 0),
+  !any(vapply(
+    combined_data[numeric_predictors],
+    function(x) any(is.infinite(x) | is.nan(x)),
+    logical(1)
+  ))
+)
+# Create a modelling copy and standardize numeric predictors.
+scaled_data <- combined_data
+
+for (i in seq_along(numeric_predictors)) {
+  p <- numeric_predictors[i]
+
+  scaled_data[[p]] <- (
+    combined_data[[p]] - predictor_scale$mean[i]
+  ) / predictor_scale$sd[i]
+}
 # Validate analysis data ----
 
 stopifnot(
   "happiness" %in% names(combined_data),
   is.numeric(combined_data$happiness),
-  all(available_predictors %in% names(combined_data))
+  all(available_predictors %in% names(combined_data)),
+  !anyDuplicated(available_predictors),
+  !any(c("Calling Code", replaced, "Official language", "Currency-Code") %in% available_predictors),
+  all(combined_data[["Urban population (%)"]] <= 100, na.rm = TRUE),
+  !any(vapply(combined_data[numeric_predictors],
+              function(x) any(is.infinite(x) | is.nan(x)), logical(1)))
+ )
+  
+# How many countries each predictor covers
+predictor_coverage <- data.frame(
+  variable    = available_predictors,
+  n_available = vapply(combined_data[available_predictors],
+                       function(x) sum(!is.na(x)), integer(1)),
+  n_total     = nrow(combined_data),
+  row.names   = NULL
+)
+  
+predictor_notes <- c(
+  "log2(CPI)" = paste(
+    "Check whether countries with extreme CPI values strongly influence",
+    "the results; report a sensitivity analysis."
+  ),
+  "Longitude" = paste(
+    "East-west position has no simple linear interpretation;",
+    "interpret with caution."
+  )
+)
+predictor_notes["Minimum wage"] <- paste(
+  "Missing for about 1 in 6 countries, mostly richer ones, and some may have",
+  "no national minimum wage. Results describe the countries with data."
 )
