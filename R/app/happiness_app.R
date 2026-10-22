@@ -2,15 +2,10 @@
 
 #' Create the happiness Shiny app
 #'
-#' Lets the user pick a predictor and an optional moderator, then shows key
-#' numbers, an interactive plot (hover a point to see the country), a
+#' Lets the user pick a predictor, an optional moderator, control variables
+#' and the continents to analyse, then shows key numbers, a world map, an
+#' interactive plot (hover a point to see the country), model checks, a
 #' plain-language summary and the coefficient table of analyse_happiness().
-#'
-#' Parts marked PLANNED are not built yet because they need something from
-#' another file; the tag names what they need, and the commented code
-#' shows where each part goes. Parts marked IDEA are undecided. All of these
-#' are built or removed before the pull request.
-#' "Coming soon" boxes keep the app running in the meantime.
 #'
 #' @param data The combined dataset (combined_data from prepare_data.R).
 #' @param predictors The variable names the user can choose from.
@@ -35,11 +30,6 @@ happiness_app <- function(data, predictors,
       width = 320,
       bg = app_colours()$sidebar,
 
-      # PLANNED (needs a variable list in prepare_data.R):
-      # Show readable names with units, e.g. "Tax revenue (% of GDP)",
-      # taken from a variable list in prepare_data.R (name, label, unit,
-      # transformation), so the menus, the plot axis and the "About the
-      # data" tab share one source.
       shinyWidgets::pickerInput(
         "primary", "Predictor",
         choices = predictor_menu(predictor_groups), selected = default_predictor,
@@ -138,12 +128,6 @@ happiness_app <- function(data, predictors,
     bslib::layout_columns(
       fill = FALSE,
       col_widths = bslib::breakpoints(sm = c(12, 6, 6), xl = c(6, 3, 3)),
-      # PLANNED (needs standardized, robust results from analyse_happiness()):
-      # For a numeric predictor, show the change in happiness points
-      # per 1 SD of the predictor with a robust (HC3) 95% CI, so effects of
-      # different predictors can be compared. For a categorical predictor,
-      # the largest group difference from the model with the controls.
-      # Changes go in key_effect() (report_happiness.R).
       bslib::value_box(
         title = shiny::textOutput("effect_title", inline = TRUE),
         value = shiny::textOutput("effect_value"),
@@ -151,9 +135,6 @@ happiness_app <- function(data, predictors,
         shiny::textOutput("effect_baseline"),
         theme = tile_theme()
       ),
-      # PLANNED (needs standardized, robust results from analyse_happiness()):
-      # With control variables, show the variance the predictor adds
-      # on top of the controls (R-squared change) instead of the total.
       bslib::value_box(
         title = "Variance explained",
         value = shiny::textOutput("r_squared"),
@@ -196,10 +177,6 @@ happiness_app <- function(data, predictors,
       ),
       bslib::nav_panel(
         "Plot",
-        # IDEA (undecided):
-        # Option to add a curved (spline) line next to the straight
-        # model line, to show whether the association bends.
-        # shiny::checkboxInput("show_curve", "Also show a curved line", FALSE),
         plotly::plotlyOutput("plot", height = "460px"),
         shiny::uiOutput("plot_note")
       ),
@@ -262,30 +239,17 @@ happiness_app <- function(data, predictors,
           shiny::tags$li(
             "One row per country: every result describes countries, not individual people."
           )
-        ),
-        # PLANNED (needs a variable list in prepare_data.R):
-        # A table of every variable with its meaning, unit, source
-        # and transformation (log, per person), read from the variable list
-        # in prepare_data.R.
-        # reactable::reactableOutput("variable_table"),
-        coming_soon("A table explaining every variable, its unit and how it was transformed.")
+        )
       )
     ),
 
     # Explanation and coefficients ----
     bslib::layout_columns(
       col_widths = c(5, 7),
-      # PLANNED (needs standardized, robust results from analyse_happiness()):
-      # Describe the effect per 1 SD; with controls, also compare the effect without and with them on the
-      # same countries. Changes go in describe_result().
       bslib::card(
         bslib::card_header("What does this mean?"),
         shiny::uiOutput("summary")
       ),
-      # PLANNED (needs standardized, robust results from analyse_happiness()):
-      # Standardized and unstandardized estimates side by side,
-      # and robust CIs.
-      # Changes go in format_coefficients().
       bslib::card(
         bslib::card_header("Model coefficients"),
         reactable::reactableOutput("coefficients")
@@ -401,10 +365,6 @@ happiness_app <- function(data, predictors,
 
     # Plot, summary and table ----
     # The error message is shown once, in place of the plot.
-    # PLANNED (needs standardized, robust results from analyse_happiness()):
-    # In plot_happiness(), draw the bands from the robust standard errors,
-    # keep the x-axis in the original units, and add the curved line when
-    # input$show_curve is ticked.
     output$plot <- plotly::renderPlotly({
       if (analysis_failed()) shiny::validate(conditionMessage(result()))
       plot <- plot_happiness(result(), countries = analysed_data()[["Country name"]],
@@ -484,11 +444,6 @@ happiness_app <- function(data, predictors,
       reactable::reactable(vif, compact = TRUE, pagination = FALSE)
     })
 
-    # About the data ----
-    # PLANNED (needs a variable list in prepare_data.R):
-    # output$variable_table <- reactable::renderReactable(
-    #   reactable::reactable(variable_info)
-    # )
   }
 
   # plotly plots do not pick up the theme colours by themselves.
@@ -554,15 +509,6 @@ selection_problem <- function(data, variables) {
     ))
   }
   NULL
-}
-
-# Stands in for a part of the app that is planned but not built yet.
-coming_soon <- function(...) {
-  shiny::div(
-    class = "text-muted p-4",
-    shiny::tags$strong("Coming soon. "),
-    paste(...)
-  )
 }
 
 # The font of the app and the plot: the computer's own system font.
@@ -644,17 +590,3 @@ remove_empty_fonts <- function(settings) {
   if (!is.null(settings$family) && settings$family %in% c("", "''")) settings$family <- NULL
   lapply(settings, remove_empty_fonts)
 }
-
-# What the PLANNED parts need from other files ----
-# None of these exist yet.
-#
-# From prepare_data.R:
-#   variable_info        Data frame: name, label, unit, group, source,
-#                        transformation. One row per available predictor.
-#   predictor_menu(variable_info, predictors)
-#                        Grouped, labelled choices for the pickers.
-#
-# From analyse_happiness.R (in the list it returns):
-#   z-scored numeric predictors (with their mean and SD in result$scaling),
-#   robust (HC3) standard errors, the robust interaction test, and the
-#   R-squared the predictor adds on top of the controls.
