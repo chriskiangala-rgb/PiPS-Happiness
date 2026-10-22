@@ -404,8 +404,17 @@ country_profile <- function(country, result, data, analysed_data) {
   })
   if (result$moderation) {
     moderator <- analysed_data[[result$moderator]][rows][position]
-    if (is.numeric(moderator)) moderator <- format(signif(moderator, 3), big.mark = ",")
-    sentences <- c(sentences, sprintf("%s: %s.", display_name(result, result$moderator), moderator))
+    # A logged moderator in its original units, like the predictor above:
+    # Population 17,300,000 instead of its log2 value 24.1.
+    scale <- log_scale(result$moderator)
+    if (is.numeric(moderator)) {
+      moderator <- format_number(original_units(moderator, result$moderator), 3)
+    }
+    sentences <- c(sentences, sprintf(
+      "%s: %s.",
+      if (is.null(scale)) display_name(result, result$moderator) else scale$name,
+      moderator
+    ))
   }
   c(sentences, sprintf(
     "%.2f points %s than the model predicts.",
