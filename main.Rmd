@@ -139,8 +139,9 @@ spatial dependence between countries.
 
 ## Assumption checks
 
-The regression assumptions are checked for every predictor in the simple
-model happiness ~ predictor (README, Methods). The counts:
+The checks below assess separate models of happiness against each predictor,
+rather than the social support moderation model reported above. The table
+summarises how often the diagnostic checks flag potential problems.
 
 ```{r assumption-checks}
 assumption_checks <- check_assumptions()
