@@ -345,10 +345,11 @@ happiness_app <- function(data, predictors,
       shiny::req(!analysis_failed())
       result()
     })
-# Country names in exactly the same order as the model observations.
-model_countries <- shiny::reactive({
-  analysed_data()[["Country name"]][usable_result()$model_rows]
-})
+    # Country names in exactly the same order as the model observations.
+    model_countries <- shiny::reactive({
+      analysed_data()[["Country name"]][usable_result()$model_rows]
+    })
+
     # Key numbers ----
     output$n_countries <- shiny::renderText(usable_result()$n_countries)
     output$n_excluded <- shiny::renderText({
@@ -429,15 +430,22 @@ model_countries <- shiny::reactive({
 
     # Model checks ----
     output$residual_plot <- plotly::renderPlotly(
-      interactive_plot(plot_residuals(usable_result(), analysed_data()[["Country name"]]))
+      interactive_plot(
+        plot_residuals(usable_result(), model_countries())
+      )
     )
+
     output$qq_plot <- plotly::renderPlotly(
-      interactive_plot(plot_qq(usable_result(), analysed_data()[["Country name"]]))
+      interactive_plot(
+        plot_qq(usable_result(), model_countries())
+      )
     )
+
     output$influential_countries <- reactable::renderReactable(
       reactable::reactable(
-        influential_countries(usable_result(), analysed_data()[["Country name"]]),
-        compact = TRUE, pagination = FALSE
+        influential_countries(usable_result(), model_countries()),
+        compact = TRUE,
+        pagination = FALSE
       )
     )
     output$vif <- shiny::renderUI({

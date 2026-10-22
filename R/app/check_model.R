@@ -1,5 +1,12 @@
 # Check the assumptions of the model from analyse_happiness() ----
 
+# Country names must match the observations used in the model.
+check_model_countries <- function(result, countries) {
+  if (length(countries) != nrow(result$model_data)) {
+    stop("Provide one country name per model observation, in model-row order.")
+  }
+}
+
 #' Plot the residuals against the fitted values
 #'
 #' A curve in the smoothed line means the association is not straight; a
@@ -7,17 +14,18 @@
 #' (heteroskedasticity).
 #'
 #' @param result The list returned by analyse_happiness().
-#' @param countries Country names in the row order of the analysed data,
-#'   used for the hover text.
+#' @param countries Country names in the same order as the model
+#'   observations (one per row of result$model_data), used for the hover text.
 #'
 #' @return A ggplot object.
 plot_residuals <- function(result, countries) {
+  check_model_countries(result, countries)
   checks <- data.frame(
     fitted = stats::fitted(result$model),
     residual = stats::residuals(result$model)
   )
   checks$tooltip <- paste0(
-    "<b>", countries[as.integer(rownames(result$model_data))], "</b>",
+    "<b>", countries, "</b>",
     "<br>Predicted: ", sprintf("%.2f", checks$fitted),
     "<br>Residual: ", sprintf("%+.2f", checks$residual)
   )
@@ -45,13 +53,13 @@ plot_residuals <- function(result, countries) {
 #'
 #' @return A ggplot object.
 plot_qq <- function(result, countries) {
+  check_model_countries(result, countries)
   residual <- stats::rstandard(result$model)
-residual_order <- order(residual)
+  residual_order <- order(residual)
   checks <- data.frame(
     theoretical = stats::qnorm(stats::ppoints(length(residual))),
- observed = residual[residual_order],
-country = countries[residual_order],
-    country = countries[as.integer(rownames(result$model_data))][order]
+    observed = residual[residual_order],
+    country = countries[residual_order]
   )
   checks$tooltip <- paste0(
     "<b>", checks$country, "</b><br>Standardized residual: ", sprintf("%+.2f", checks$observed)
@@ -76,20 +84,8 @@ country = countries[residual_order],
 #'
 #' @return A data frame with the n most influential countries.
 influential_countries <- function(result, countries, n = 5) {
-  # Country names must match the observations used in the model.
-  if (length(countries) != nrow(result$model_data)) {
-    stop("Provide one country name per model observation, in model-row order.")
-  }
+  check_model_countries(result, countries)
 
-  # Validate the requested number of countries.
-  if (!is.numeric(n) || length(n) != 1L ||
-      !is.finite(n) || n < 1 || n != floor(n)) {
-    stop("n must be a positive whole number.")
-  }
-
-  distance <- stats::cooks.distance(result$model)
-  threshold <- 4 / length(distance)
-influential_countries <- function(result, countries, n = 5) {
   # Validate the requested number of countries.
   if (!is.numeric(n) || length(n) != 1L ||
       !is.finite(n) || n < 1 || n != floor(n)) {
@@ -103,10 +99,8 @@ influential_countries <- function(result, countries, n = 5) {
     seq_len(min(n, length(distance)))
   ]
 
-  rows <- as.integer(rownames(result$model_data))[top]
-
   data.frame(
-    Country = countries[rows],
+    Country = countries[top],
     Happiness = sprintf("%.2f", result$model_data$happiness[top]),
     Residual = sprintf("%+.2f", stats::residuals(result$model)[top]),
     `Cook's distance` = sprintf("%.3f", distance[top]),
