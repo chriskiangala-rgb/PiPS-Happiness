@@ -7,6 +7,10 @@ output: html_document
 for (file in list.files("R", recursive = TRUE, full.names = TRUE)) source(file)
 ```
 
+To start the app, open this file in RStudio and run the chunk below (the
+green arrow at its top right). Knitting the file only shows the code, because
+an app cannot run inside a static HTML page.
+
 ```{r app, eval = FALSE}
 shiny::runApp(happiness_app(
   combined_data, available_predictors,

@@ -101,11 +101,16 @@ map_note <- function(result, data, layer) {
   if (layer != "residual") return(sentences)
 
   rows <- as.integer(rownames(result$model_data))
+  colours <- "Blue countries are happier than the model predicts, red countries unhappier."
+  # Moran's I needs at least 3 countries with coordinates.
+  if (sum(is.finite(data$Latitude[rows]) & is.finite(data$Longitude[rows])) < 3) {
+    return(c(colours, "Too few countries with coordinates to test whether nearby countries are alike.", sentences))
+  }
   clustering <- morans_i(
     stats::residuals(result$model), data$Latitude[rows], data$Longitude[rows]
   )
   c(
-    "Blue countries are happier than the model predicts, red countries unhappier.",
+    colours,
     sprintf(
       "Nearby countries %s (Moran's I = %.2f, p %s, %d countries).",
       if (clustering$p_value < 0.05) {
