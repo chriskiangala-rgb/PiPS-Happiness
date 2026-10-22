@@ -70,7 +70,7 @@ Open [main.Rmd](main.Rmd) and click **Knit** in RStudio to generate the HTML rep
 rmarkdown::render("main.Rmd")
 ```
 
-Knitting runs the setup and assumption-check chunks from top to bottom. The app chunk has `eval = FALSE`, so its code appears in the report, but the interactive app does not launch during knitting.
+Knitting runs every chunk from top to bottom: the analysis, the plot and the assumption checks. The app chunk has `eval = FALSE`, so its code appears in the report, but the interactive app does not launch during knitting.
 
 ### Launch the interactive app
 
