@@ -189,8 +189,7 @@ happiness_predictors <- c(
 )
 
 # Select the numeric world-dataset variables.
-# Calling Code is an identifier, not a useful numeric predictor. Remove this from the variable-selection menu.
-# Exclude identifiers and raw versions replaced by transformations.
+# Exclude identifiers (Calling Code) and raw versions replaced by transformations.
 replaced <- c(
   "GDP",
   "Co2-Emissions",
