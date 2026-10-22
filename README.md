@@ -24,6 +24,7 @@ R/app/check_model.R      Model checks: residual plots, influential countries and
 R/app/predictor_groups.R Groups the predictors by theme for the app's menus
 examples/examples.R      Example analyses with explanation: source("examples/examples.R")
 tests/error_checks.R     Checks that the data and analysis work: source("tests/error_checks.R")
+tests/app_checks.R       Checks that the app and its outputs work: source("tests/app_checks.R")
 data/WHR2023.csv         World Happiness Report 2023
 data/world-data-2023.csv Global country information 2023
 ```
