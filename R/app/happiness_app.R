@@ -358,7 +358,7 @@ happiness_app <- function(data, predictors,
       } else {
         ""
       }
-      tryCatch(
+      result <- tryCatch(
         analyse_happiness(
           input$primary, moderator,
           data = analysed_data(), predictors = predictors,
@@ -368,6 +368,11 @@ happiness_app <- function(data, predictors,
         ),
         error = function(error) error
       )
+      # The tiles, summary, plot and tables show the readable labels.
+      if (!inherits(result, "error") && !is.null(variable_info)) {
+        result$labels <- stats::setNames(variable_info$label, variable_info$variable)
+      }
+      result
     })
     analysis_failed <- shiny::reactive(inherits(result(), "error"))
     usable_result <- shiny::reactive({

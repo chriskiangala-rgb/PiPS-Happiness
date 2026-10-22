@@ -31,7 +31,7 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
   hover <- paste0(
     "<b>", countries, "</b>",
     "<br>Happiness: ", sprintf("%.2f", happiness),
-    "<br>", if (is.null(scale)) result$primary else scale$name, ": ",
+    "<br>", if (is.null(scale)) display_name(result, result$primary) else scale$name, ": ",
     format_map_value(original_units(predictor, result$primary)),
     "<br>Compared with the model: ", sprintf("%+.2f", residual)
   )
@@ -43,7 +43,7 @@ map_happiness <- function(result, data, layer = c("happiness", "predictor", "res
     values <- switch(layer, happiness = happiness, predictor = predictor, residual = residual)
     title <- switch(layer,
       happiness = "Happiness",
-      predictor = if (is.null(scale)) result$primary else scale$name,
+      predictor = if (is.null(scale)) display_name(result, result$primary) else scale$name,
       residual = "Compared with the model"
     )
     colorbar <- list(title = list(text = paste(strwrap(title, 14), collapse = "<br>")), len = 0.7)

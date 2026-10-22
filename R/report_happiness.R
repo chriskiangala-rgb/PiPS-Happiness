@@ -13,8 +13,10 @@ format_coefficients <- function(result) {
   coefficients <- result$all_coefficients
   data.frame(
     Term = vapply(coefficients$term, label_term, character(1),
-                  primary = result$primary, moderator = result$moderator,
-                  controls = result$control_variables),
+                  primary = display_name(result, result$primary),
+                  moderator = display_name(result, result$moderator),
+                  controls = result$control_variables,
+                  control_labels = display_name(result, result$control_variables)),
     Estimate = sprintf("%.3f", coefficients$estimate),
     `95% CI` = sprintf("[%.3f, %.3f]", coefficients$ci_lower, coefficients$ci_upper),
     p = format_p(coefficients$p_value),
@@ -32,6 +34,8 @@ format_coefficients <- function(result) {
 #' @return A character vector with one sentence per element.
 describe_result <- function(result, sd = NULL) {
   model_summary <- summary(result$model)
+  primary <- display_name(result, result$primary)
+  moderator <- display_name(result, result$moderator)
   sentences <- sprintf(
     "Based on %d countries (%d excluded because of missing data).",
     result$n_countries, result$n_excluded
@@ -40,7 +44,7 @@ describe_result <- function(result, sd = NULL) {
   if (length(controls) > 0) {
     sentences <- c(sentences, sprintf(
       "Controlling for %s: the results compare countries that are equal on %s.",
-      paste(controls, collapse = ", "), if (length(controls) == 1) "it" else "these"
+      paste(display_name(result, controls), collapse = ", "), if (length(controls) == 1) "it" else "these"
     ))
   }
 
@@ -54,7 +58,7 @@ describe_result <- function(result, sd = NULL) {
       scale <- log_scale(result$primary)
       sentences <- c(sentences, sprintf(
         "Countries with %s have a %.2f points %s happiness score on average (95%% CI [%.2f, %.2f], p %s).",
-        if (is.null(scale)) paste("a one-unit higher", result$primary) else paste("10 times more", scale$name),
+        if (is.null(scale)) paste("a one-unit higher", primary) else paste("10 times more", scale$name),
         abs(slope$estimate * step),
         if (slope$estimate >= 0) "higher" else "lower",
         slope$ci_lower * step, slope$ci_upper * step,
@@ -70,7 +74,7 @@ describe_result <- function(result, sd = NULL) {
     }
     sentences <- c(sentences, sprintf(
       "%s explain%s %.0f%% of the differences in happiness between countries (F(%d, %d) = %.2f, p %s).",
-      if (length(controls) > 0) paste(result$primary, "and the control variables together") else result$primary,
+      if (length(controls) > 0) paste(primary, "and the control variables together") else primary,
       if (length(controls) > 0) "" else "s",
       100 * result$r_squared,
       as.integer(model_test[2]), as.integer(model_test[3]), model_test[1],
@@ -86,7 +90,7 @@ describe_result <- function(result, sd = NULL) {
       added <- stats::anova(controls_only, result$model)
       sentences <- c(sentences, sprintf(
         "%s adds %.0f%% on top of the control variables (F(%d, %d) = %.2f, p %s).",
-        result$primary, 100 * (result$r_squared - summary(controls_only)$r.squared),
+        primary, 100 * (result$r_squared - summary(controls_only)$r.squared),
         as.integer(added$Df[2]), as.integer(added$Res.Df[2]), added$F[2],
         format_p(added$`Pr(>F)`[2], with_sign = TRUE)
       ))
@@ -96,17 +100,17 @@ describe_result <- function(result, sd = NULL) {
     significant <- test$p_value < 0.05
     sentences <- c(sentences, sprintf(
       "Adding the interaction between %s and %s %s the model (F(%d, %d) = %.2f, p %s).",
-      result$primary, result$moderator,
+      primary, moderator,
       if (significant) "significantly improves" else "does not significantly improve",
       as.integer(test$df_added), as.integer(df.residual(result$model)),
       test$f_value, format_p(test$p_value, with_sign = TRUE)
     ))
     sentences <- c(sentences, if (significant) {
       sprintf("So the association between %s and happiness differs depending on %s.",
-              result$primary, result$moderator)
+              primary, moderator)
     } else {
       sprintf("There is no evidence that the association between %s and happiness depends on %s (which is not the same as evidence that it does not).",
-              result$primary, result$moderator)
+              primary, moderator)
     })
   }
 
@@ -172,7 +176,7 @@ key_effect <- function(result, countries = NULL, sd = NULL) {
     slope <- result$primary_coefficients
     step <- ten_times(result$primary)
     return(list(
-      title = paste("Change in happiness", per_step(result$primary)),
+      title = paste("Change in happiness", per_step(result$primary, display_name(result, result$primary))),
       value = sprintf("%+.2f", slope$estimate * step),
       detail = sprintf("95%% CI [%.2f, %.2f], p %s",
                        slope$ci_lower * step, slope$ci_upper * step,
@@ -208,17 +212,19 @@ describe_interaction <- function(term, result) {
   moderator_numeric <- is.numeric(result$model_data$moderator)
   # "Social support", or "10 times more GDP per person" for a logged predictor.
   scale <- log_scale(result$primary)
-  primary <- if (is.null(scale)) result$primary else paste("10 times more", scale$name)
+  primary <- if (is.null(scale)) display_name(result, result$primary) else paste("10 times more", scale$name)
+  moderator_step <- per_step(result$moderator, display_name(result, result$moderator))
   if (primary_numeric && moderator_numeric) {
-    sprintf("Change in the effect of %s %s", primary, per_step(result$moderator))
+    sprintf("Change in the effect of %s %s", primary, moderator_step)
   } else if (primary_numeric) {
     sprintf("Difference in the effect of %s: %s vs %s",
             primary, group, result$reference_categories$moderator)
   } else if (moderator_numeric) {
     sprintf("Change in the %s vs %s difference %s",
-            group, result$reference_categories$primary, per_step(result$moderator))
+            group, result$reference_categories$primary, moderator_step)
   } else {
-    paste("Interaction:", label_term(term, result$primary, result$moderator))
+    paste("Interaction:", label_term(term, display_name(result, result$primary),
+                                     display_name(result, result$moderator)))
   }
 }
 
@@ -235,7 +241,8 @@ effect_without_moderator <- function(result) {
     interval <- stats::confint(initial)["primary", ] * step
     return(sprintf(
       "Without the moderator: %+.2f %s, 95%% CI [%.2f, %.2f]",
-      stats::coef(initial)[["primary"]] * step, per_step(result$primary),
+      stats::coef(initial)[["primary"]] * step,
+      per_step(result$primary, display_name(result, result$primary)),
       interval[1], interval[2]
     ))
   }
@@ -322,7 +329,8 @@ country_profile <- function(country, result, data, analysed_data) {
       value <- value[[1]]
       if (is.numeric(value)) !is.finite(value) else is.na(value) || trimws(as.character(value)) == ""
     }, logical(1))]
-    return(sprintf("Not in this analysis: missing data on %s.", paste(missing, collapse = ", ")))
+    return(sprintf("Not in this analysis: missing data on %s.",
+                   paste(display_name(result, missing), collapse = ", ")))
   }
 
   position <- match(country, analysed_countries)
@@ -339,16 +347,16 @@ country_profile <- function(country, result, data, analysed_data) {
     # A logged predictor in its original units, e.g. GDP per person 19,600.
     scale <- log_scale(result$primary)
     sprintf("%s %s: number %d of %d countries.",
-            if (is.null(scale)) result$primary else scale$name,
+            if (is.null(scale)) display_name(result, result$primary) else scale$name,
             format_number(original_units(predictor[position], result$primary), 3),
             rank(-predictor, ties.method = "min")[position], n)
   } else {
-    sprintf("%s: %s.", result$primary, predictor[position])
+    sprintf("%s: %s.", display_name(result, result$primary), predictor[position])
   })
   if (result$moderation) {
     moderator <- analysed_data[[result$moderator]][rows][position]
     if (is.numeric(moderator)) moderator <- format(signif(moderator, 3), big.mark = ",")
-    sentences <- c(sentences, sprintf("%s: %s.", result$moderator, moderator))
+    sentences <- c(sentences, sprintf("%s: %s.", display_name(result, result$moderator), moderator))
   }
   c(sentences, sprintf(
     "%.2f points %s than the model predicts.",
@@ -420,7 +428,7 @@ describe_curvature <- function(curve, result) {
   sprintf(
     paste("The association with %s is curved%s: a curve explains %.0f%% of the differences in happiness instead of %.0f%%",
           "(F(%d, %d) = %.2f, p %s), so the straight line misses part of it. Look at the plot and the residuals."),
-    result$primary, if (curve$against > 0.1) " and goes up and down" else "",
+    display_name(result, result$primary), if (curve$against > 0.1) " and goes up and down" else "",
     100 * curve$r_squared_curve, 100 * curve$r_squared_line,
     curve$df_added, curve$df_residual, curve$f_value, format_p(curve$p_value, with_sign = TRUE)
   )
@@ -458,9 +466,10 @@ ten_times <- function(variable) {
 }
 
 # "per unit of Social support", or "per 10 times more GDP per person".
-per_step <- function(variable) {
+# name: how to show a variable that is not logged (e.g. its label).
+per_step <- function(variable, name = variable) {
   scale <- log_scale(variable)
-  if (is.null(scale)) paste("per unit of", variable) else paste("per 10 times more", scale$name)
+  if (is.null(scale)) paste("per unit of", name) else paste("per 10 times more", scale$name)
 }
 
 # Values of a logged variable back in their original units.
@@ -533,20 +542,40 @@ format_number <- function(values, digits = 2) {
 
 # Helpers ----
 
+#' The name to show for variables
+#'
+#' Their labels when the result has labels (result$labels, a named vector
+#' that the app sets from variable_info), otherwise the variable names.
+#' Calculations always use the variable names.
+#'
+#' @param result The list returned by analyse_happiness().
+#' @param variables Variable names; NULL gives NULL.
+#'
+#' @return A character vector of the same length.
+display_name <- function(result, variables) {
+  if (is.null(variables)) return(NULL)
+  labels <- result$labels
+  vapply(variables, function(variable) {
+    if (!is.null(labels) && variable %in% names(labels)) labels[[variable]] else variable
+  }, character(1), USE.NAMES = FALSE)
+}
+
 # Replace the internal names in a model term, e.g.
 # "primary:moderatorEurope" -> "Social support x continent [Europe]".
 # Control variables already carry their real names; a group of a
 # categorical control gets brackets too: "Official languageEnglish" ->
 # "Official language [English]".
-label_term <- function(term, primary, moderator, controls = character(0)) {
+label_term <- function(term, primary, moderator, controls = character(0),
+                       control_labels = controls) {
   if (term == "(Intercept)") return("Intercept")
   # Control variables are never part of an interaction, and their names can
   # contain ":" themselves, e.g. "Population: Labor force participation (%)".
   # The longest name first, so "CPI Change (%)" is not read as "CPI".
-  for (control in controls[order(-nchar(controls))]) {
-    if (term == control) return(control)
+  for (i in order(-nchar(controls))) {
+    control <- controls[i]
+    if (term == control) return(control_labels[i])
     if (startsWith(term, control)) {
-      return(paste0(control, " [", substring(term, nchar(control) + 1), "]"))
+      return(paste0(control_labels[i], " [", substring(term, nchar(control) + 1), "]"))
     }
   }
   labels <- c(moderator = moderator, primary = primary)
