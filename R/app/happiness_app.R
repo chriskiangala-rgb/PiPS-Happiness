@@ -320,9 +320,10 @@ happiness_app <- function(data, predictors,
       shiny::req(input$primary)
       moderator <- if (is.null(input$moderator)) "" else input$moderator
       controls <- setdiff(input$controls, c(input$primary, moderator))
-      problem <- selection_problem(analysed_data(), c(input$primary, moderator, controls))
-      if (!is.null(problem)) return(simpleError(problem))
       compares_continents <- "continent" %in% c(input$primary, moderator)
+      problem <- selection_problem(analysed_data(), c(input$primary, moderator, controls),
+                                   compares_continents)
+      if (!is.null(problem)) return(simpleError(problem))
       reference <- if (compares_continents && isTRUE(input$reference_continent %in% input$continents)) {
         input$reference_continent
       } else {
@@ -483,14 +484,15 @@ control_choices <- function(predictor_groups, taken) {
 }
 
 # Explain why a selection cannot be analysed, before analysing it: no
-# continents chosen, a single continent while continents are compared, or
-# too few countries with data on every chosen variable (analyse_happiness()
-# needs at least 3). NULL when it can be.
-selection_problem <- function(data, variables) {
+# continents chosen, a single continent while continents are compared, too
+# few countries with data on every chosen variable (analyse_happiness()
+# needs at least 3), or a variable that is the same for all of them. NULL
+# when it can be.
+selection_problem <- function(data, variables, compares_continents = FALSE) {
   if (nrow(data) == 0) {
     return("No continents selected. Choose at least one continent in the sidebar.")
   }
-  if ("continent" %in% variables && length(unique(data$continent)) < 2) {
+  if (compares_continents && length(unique(data$continent)) < 2) {
     return("Continent is the predictor or moderator: select at least two continents to compare.")
   }
   if (nrow(data) < 3) {
@@ -507,6 +509,16 @@ selection_problem <- function(data, variables) {
             "The analysis needs at least 3: select more continents or other variables."),
       complete, nrow(data), paste(variables, collapse = " and ")
     ))
+  }
+  # E.g. continent as a control variable while one continent is selected.
+  complete_rows <- stats::complete.cases(data[c("happiness", variables)])
+  for (variable in variables) {
+    if (length(unique(data[[variable]][complete_rows])) < 2) {
+      return(sprintf(
+        "%s is the same for every country in the selected continents, so its effect cannot be estimated: choose another variable or more continents.",
+        variable
+      ))
+    }
   }
   NULL
 }

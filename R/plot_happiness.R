@@ -19,7 +19,8 @@
 #' @return A ggplot object.
 plot_happiness <- function(result, countries = NULL, highlight = "") {
   model_data <- result$model_data
-  predictions <- build_prediction_grid(model_data, result$moderation)
+  predictions <- build_prediction_grid(model_data, result$moderation,
+                                       names(result$control_mapping))
   predictions <- cbind(
     predictions,
     predict(result$model, newdata = predictions, interval = "confidence")
@@ -140,9 +141,9 @@ plot_caption <- function(result, line_break = "\n") {
 
 # Build the values at which the model's predictions are plotted ----
 
-build_prediction_grid <- function(model_data, moderation) {
+build_prediction_grid <- function(model_data, moderation, controls = character(0)) {
   grid <- prediction_values(model_data, moderation)
-  for (control in control_terms(model_data)) {
+  for (control in controls) {
     values <- model_data[[control]]
     held_at <- if (is.numeric(values)) {
       mean(values)

@@ -67,7 +67,7 @@ describe_result <- function(result) {
     # give what the predictor adds on top of them.
     if (length(controls) > 0) {
       controls_only <- stats::lm(
-        stats::reformulate(control_terms(result$model_data), response = "happiness"),
+        stats::reformulate(names(result$control_mapping), response = "happiness"),
         data = result$model_data
       )
       added <- stats::anova(controls_only, result$model)
@@ -186,7 +186,7 @@ describe_interaction <- function(term, result) {
 # can be compared.
 effect_without_moderator <- function(result) {
   initial <- stats::lm(
-    stats::reformulate(c("primary", control_terms(result$model_data)), response = "happiness"),
+    stats::reformulate(c("primary", names(result$control_mapping)), response = "happiness"),
     data = result$model_data
   )
   if (is.numeric(result$model_data$primary)) {
@@ -274,7 +274,11 @@ country_profile <- function(country, result, data, analysed_data) {
   if (!country %in% analysed_countries) {
     variables <- c("happiness", result$primary, result$moderator, result$control_variables)
     values <- analysed_data[analysed_data[["Country name"]] == country, variables]
-    missing <- variables[vapply(values, function(value) is.na(value[[1]]), logical(1))]
+    # The same rule as analyse_happiness(): no NA, infinite or blank values.
+    missing <- variables[vapply(values, function(value) {
+      value <- value[[1]]
+      if (is.numeric(value)) !is.finite(value) else is.na(value) || trimws(as.character(value)) == ""
+    }, logical(1))]
     return(sprintf("Not in this analysis: missing data on %s.", paste(missing, collapse = ", ")))
   }
 
@@ -315,9 +319,16 @@ country_profile <- function(country, result, data, analysed_data) {
 # "Official language [English]".
 label_term <- function(term, primary, moderator, controls = character(0)) {
   if (term == "(Intercept)") return("Intercept")
+  # Control variables are never part of an interaction, and their names can
+  # contain ":" themselves, e.g. "Population: Labor force participation (%)".
   # The longest name first, so "CPI Change (%)" is not read as "CPI".
-  labels <- c(primary = primary, moderator = moderator, stats::setNames(controls, controls))
-  labels <- labels[order(-nchar(names(labels)))]
+  for (control in controls[order(-nchar(controls))]) {
+    if (term == control) return(control)
+    if (startsWith(term, control)) {
+      return(paste0(control, " [", substring(term, nchar(control) + 1), "]"))
+    }
+  }
+  labels <- c(moderator = moderator, primary = primary)
   parts <- strsplit(term, ":", fixed = TRUE)[[1]]
   parts <- vapply(parts, function(part) {
     for (internal in names(labels)) {
@@ -329,12 +340,6 @@ label_term <- function(term, primary, moderator, controls = character(0)) {
     part
   }, character(1))
   paste(parts, collapse = " x ")
-}
-
-# The internal names of the control variables in the model data
-# (control1, control2, ...).
-control_terms <- function(model_data) {
-  setdiff(names(model_data), c("happiness", "primary", "moderator"))
 }
 
 # Format p-values the APA way: no leading zero, and "< .001" for small values.
