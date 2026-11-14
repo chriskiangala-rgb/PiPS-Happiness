@@ -118,8 +118,6 @@ R/app/predictor_groups.R Groups the predictors by theme for the app's menus
 examples/examples.R             Example analyses with explanation: source("examples/examples.R")
 tests/error_checks.R            Checks that the data and analysis work: source("tests/error_checks.R")
 tests/app_checks.R              Checks that the app and its outputs work: source("tests/app_checks.R")
-data/WHR2023.csv                World Happiness Report 2023
-data/world-data-2023.csv Global country information 2023
 images/                         Screenshots of the app for this README
 ```
 
@@ -130,6 +128,8 @@ images/                         Screenshots of the app for this README
 Run `source("install.R")` once; it installs any required package you do not have yet. The list of packages lives in `install.R`; add new packages there.
 
 The app uses `shiny`, `bslib`, `shinyWidgets`, `plotly`, `ggplot2` and `reactable`. The analysis uses `sandwich` and `lmtest` for the HC3 robust standard errors and the robust Wald tests (Long & Ervin, 2000), and `splines` (part of R) for the curve option. `rmarkdown` knits `main.Rmd`.
+
+The two datasets are not stored in this repository: `R/prepare_data.R` reads them directly from Kaggle each time the project loads, so you need an internet connection. The World Happiness Report 2023 file is released under CC0 (public domain); the Global Country Information Dataset 2023 by Nidula Elgiriyewithana is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). We clean and transform both (see Methods); the full references are in section 11.
 
 ## 8. Methods
 

@@ -6,3 +6,5 @@
 .claude/
 # Knitted output of main.Rmd
 main.html
+# Local copies of the Kaggle data (read from Kaggle instead)
+data/

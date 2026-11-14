@@ -5,18 +5,38 @@
 # objects are removed at the end, so only the results remain.
 
 # Import datasets ----
+# Both datasets are read directly from Kaggle, so they are not stored in
+# this repository (see the README for their licences).
+
+kaggle <- "https://www.kaggle.com/api/v1/datasets/download/"
+dataset_pages <- c(
+  "https://www.kaggle.com/datasets/nelgiriyewithana/countries-of-the-world-2023",
+  "https://www.kaggle.com/datasets/ajaypalsinghlo/world-happiness-report-2023"
+)
+
+# Read a CSV file from Kaggle, with a clear message when that fails.
+read_kaggle_csv <- function(file, ...) {
+  tryCatch(
+    read.csv(paste0(kaggle, file), check.names = FALSE, ...),
+    error = function(error) stop(
+      "Could not read the data from Kaggle. Check your internet connection; ",
+      "if that works, check that the datasets are still online at ",
+      paste(dataset_pages, collapse = " and "), ".",
+      call. = FALSE
+    )
+  )
+}
 
 # Read the world dataset.
 # Keep columns as text for now; numbers will be cleaned later
-world_data <- read.csv(
-  "data/world-data-2023.csv",
+world_data <- read_kaggle_csv(
+  "nelgiriyewithana/countries-of-the-world-2023/world-data-2023.csv",
   colClasses = "character",
-  na.strings = "",
-  check.names = FALSE
+  na.strings = ""
 )
 
 # Read the happiness dataset.
-happiness_data <- read.csv("data/WHR2023.csv", check.names = FALSE)
+happiness_data <- read_kaggle_csv("ajaypalsinghlo/world-happiness-report-2023/WHR2023.csv")
 
 # Standardize country names for matching ----
 
@@ -381,6 +401,7 @@ stopifnot(
 # Only the results above, and the raw data the error checks inspect, stay.
 
 rm(
+  kaggle, dataset_pages, read_kaggle_csv,
   column, continent_choices, country_iso3, derived_predictors,
   happiness_predictors, i, is_americas, log_names, log_vars, log2_positive,
   numeric_predictors, old_name, predictor_coverage, predictor_scale, replaced,
